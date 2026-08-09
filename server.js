@@ -1,56 +1,72 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
-  cors: { origin: "*" }
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
 });
 
-// Serve static frontend files from 'public' directory
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve web frontend files if needed
+app.use(express.static('public'));
 
-// Socket.IO Connection Logic
 io.on('connection', (socket) => {
-  console.log(`Device connected: ${socket.id}`);
+  console.log(`\n========================================`);
+  console.log(`[SOCKET CONNECTED] ID: ${socket.id}`);
+  console.log(`Query Params:`, socket.handshake.query);
+  console.log(`========================================\n`);
 
+  // 1. Device Registration Event Listener
   socket.on('REGISTER_DEVICE', (data) => {
-    socket.join(`room_${data.unit_id}`);
-    socket.join('room_hpg_squad');
-    console.log(`${data.unit_id} joined private and group channels`);
+    console.log(`[EVENT: REGISTER_DEVICE] Received from ${socket.id}:`, data);
+    
+    // Store unit context on the socket instance
+    socket.unit_id = data.unit_id;
+    socket.role = data.role;
+
+    // Join room for targeting specific units
+    if (data.unit_id) {
+      socket.join(data.unit_id);
+    }
+
+    // Broadcast registration to all connected web dashboards
+    io.emit('DEVICE_REGISTERED', data);
   });
 
-  socket.on('SIGNAL_EXCHANGE', (payload) => {
-    io.to(`room_${payload.target_id}`).emit('SIGNAL_EXCHANGE', {
-      sender_id: payload.sender_id,
-      signalData: payload.signalData
-    });
+  // 2. Telemetry Report Listener (Android -> Server -> Dashboard)
+  socket.on('TELEMETRY_REPORT', (data) => {
+    console.log(`[EVENT: TELEMETRY_REPORT] Payload received:`, JSON.stringify(data, null, 2));
+
+    // Re-broadcast to web clients (Leaflet map relies on this)
+    io.emit('TELEMETRY_UPDATE', data);
   });
 
-  socket.on('TACTICAL_MESSAGE', (messageData) => {
-    if (messageData.recipient === 'ALL') {
-      io.to('room_hpg_squad').emit('TACTICAL_MESSAGE', messageData);
-    } else {
-      io.to(`room_${messageData.recipient}`).emit('TACTICAL_MESSAGE', messageData);
+  // 3. Fallback Location Update Listener
+  socket.on('LOCATION_UPDATE', (data) => {
+    console.log(`[EVENT: LOCATION_UPDATE] Payload received:`, JSON.stringify(data, null, 2));
+    io.emit('TELEMETRY_UPDATE', data);
+  });
+
+  // 4. Catch-all Debugger (Logs ANY event emitted by Android)
+  socket.onAny((eventName, ...args) => {
+    if (!['TELEMETRY_REPORT', 'LOCATION_UPDATE', 'REGISTER_DEVICE'].includes(eventName)) {
+      console.log(`[UNKNOWN EVENT RECEIVED] Name: "${eventName}" | Data:`, args);
     }
   });
 
-  socket.on('PTT_AUDIO_CHUNK', (data) => {
-    if (data.target_unit === 'ALL') {
-      io.to('room_hpg_squad').emit('PTT_AUDIO_CHUNK', data);
-    } else {
-      io.to(`room_${data.target_unit}`).emit('PTT_AUDIO_CHUNK', data);
-    }
-  });
-
-  socket.on('DISPATCH_OVERRIDE_COMMAND', (commandPayload) => {
-    io.to(`room_${commandPayload.target_unit}`).emit('EXECUTE_OVERRIDE', commandPayload);
+  // 5. Disconnect handling
+  socket.on('disconnect', (reason) => {
+    console.log(`[SOCKET DISCONNECTED] ID: ${socket.id} | Unit: ${socket.unit_id || 'Unknown'} | Reason: ${reason}`);
+    io.emit('DEVICE_OFFLINE', { unit_id: socket.unit_id });
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Render server listening on port ${PORT}`);
+  console.log(`HPG Dispatch Engine running on port ${PORT}`);
 });
