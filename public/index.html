@@ -5,36 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HPG Tactical Dispatcher Console</title>
   
-  <!-- Leaflet CSS for Map rendering -->
+  <!-- Leaflet CSS for Map Rendering -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { display: flex; height: 100vh; background: #0f172a; color: #f8fafc; overflow: hidden; }
 
-    /* Layout Columns */
-    #sidebar { width: 320px; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; padding: 15px; gap: 15px; }
+    /* Column Layouts */
+    #sidebar { width: 320px; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; padding: 15px; gap: 15px; overflow-y: auto; }
     #main-content { flex: 1; display: flex; flex-direction: column; }
     #map { flex: 1; width: 100%; background: #020617; }
     #communication-panel { height: 280px; background: #0f172a; border-top: 1px solid #334155; display: flex; padding: 15px; gap: 15px; }
 
     /* Cards & Components */
     .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; }
-    h3 { font-size: 14px; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; letter-spacing: 0.5px; }
+    h3 { font-size: 13px; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; letter-spacing: 0.5px; }
 
-    /* Target Selector Dropdown */
-    select, input[type="text"], button { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white; outline: none; margin-bottom: 8px; }
+    /* Dropdowns & Buttons */
+    select, input[type="text"], button { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white; outline: none; margin-bottom: 8px; font-size: 13px; }
     button { background: #2563eb; font-weight: bold; cursor: pointer; transition: background 0.2s; border: none; }
     button:hover { background: #1d4ed8; }
 
-    /* Action Buttons */
+    /* Action Modifiers */
     .btn-danger { background: #dc2626; }
     .btn-danger:hover { background: #b91c1c; }
     .btn-warning { background: #d97706; }
     .btn-warning:hover { background: #b45309; }
 
     /* Push-to-Talk (PTT) Master Button */
-    #ptt-btn { height: 50px; background: #16a34a; font-size: 16px; user-select: none; }
+    #ptt-btn { height: 50px; background: #16a34a; font-size: 15px; user-select: none; }
     #ptt-btn:active { background: #15803d; transform: scale(0.98); }
 
     /* Chat Terminal */
@@ -44,21 +44,23 @@
     .msg-sent { background: #1e40af; align-self: flex-end; }
     .msg-recv { background: #334155; align-self: flex-start; }
 
-    /* Video Feed Container */
-    #video-container { width: 280px; background: #000; border-radius: 8px; border: 1px solid #334155; overflow: hidden; position: relative; }
+    /* Video Monitor Container */
+    #video-container { width: 300px; background: #000; border-radius: 8px; border: 1px solid #334155; overflow: hidden; position: relative; }
     video { width: 100%; height: 100%; object-fit: cover; }
-    .video-label { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.7); padding: 2px 6px; font-size: 10px; border-radius: 4px; }
-    
-    #status-indicator { font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 4px; margin-bottom: 8px; text-align: center; }
-    .online { background: #15803d; color: white; }
-    .offline { background: #b91c1c; color: white; }
+    .video-label { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.7); padding: 3px 8px; font-size: 11px; border-radius: 4px; border: 1px solid #475569; }
+
+    /* System Status Header Bar */
+    #status-badge { font-size: 11px; font-weight: bold; padding: 6px; border-radius: 4px; text-align: center; letter-spacing: 0.5px; }
+    .online { background: #15803d; color: #f8fafc; }
+    .offline { background: #b91c1c; color: #f8fafc; }
   </style>
 </head>
 <body>
 
   <!-- LEFT SIDEBAR: UNIT STATUS & COMMAND OVERRIDES -->
   <div id="sidebar">
-    <div id="status-indicator" class="offline">SYSTEM: CONNECTING...</div>
+    <div id="status-badge" class="offline">CONNECTING TO DISPATCH ENGINE...</div>
+
     <div class="card">
       <h3>Target Field Unit</h3>
       <select id="target-unit-select">
@@ -86,8 +88,8 @@
     <!-- Audio/Video Controls -->
     <div class="card">
       <h3>WebRTC Calling</h3>
-      <button id="btn-call-unit">Start Video Call</button>
-      <button id="btn-end-call" class="btn-danger">End Active Call</button>
+      <button id="btn-call-unit">Start Video Feed</button>
+      <button id="btn-end-call" class="btn-danger">End Video Feed</button>
     </div>
   </div>
 
@@ -98,22 +100,20 @@
     <div id="communication-panel">
       <!-- Chat Terminal -->
       <div id="chat-box" class="card">
-        <h3>Dispatch Command Chat</h3>
+        <h3>Dispatch Command Terminal</h3>
         <div id="chat-messages">
-          <div class="msg msg-recv"><b>System:</b> Tactical Dispatch Console Online.</div>
+          <div class="msg msg-recv"><b>System:</b> Tactical Dispatch Console Ready.</div>
         </div>
         <div style="display: flex; gap: 8px;">
-          <input type="text" id="chat-input" placeholder="Type command message or task..." style="margin-bottom:0;" />
-          <input type="file" id="media-input" style="display:none;" accept="image/*,video/*,audio/*" />
-          <button id="btn-attach" style="width: auto; background: #475569;">📎</button>
+          <input type="text" id="chat-input" placeholder="Type task or command..." style="margin-bottom:0;" />
           <button id="btn-send-chat" style="width: 100px;">Send</button>
         </div>
       </div>
 
-      <!-- Remote Video Stream Monitor -->
+      <!-- Remote Video Monitor -->
       <div id="video-container">
         <video id="remote-video" autoplay playsinline muted></video>
-        <div class="video-label">LIVE FEED: <span id="video-unit-name">NONE</span></div>
+        <div class="video-label">LIVE STREAM: <span id="video-unit-name">NONE</span></div>
       </div>
     </div>
   </div>
@@ -122,7 +122,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
-  <!-- Application Controller Code -->
+  <!-- Main Controller Application -->
   <script>
     // 1. Initialize Map Centered on Manila
     const map = L.map('map').setView([14.5995, 120.9842], 13);
@@ -131,52 +131,40 @@
     }).addTo(map);
 
     const markers = {};
-    const statusIndicator = document.getElementById('status-indicator');
+    const statusBadge = document.getElementById('status-badge');
 
-    // 2. Initialize Direct Socket.IO Connection (Fallback-safe)
+    // 2. Socket.IO Connection Setup
     const socket = io(window.location.origin, {
-      query: { role: "DISPATCHER" }
+      query: { role: "DISPATCHER", unit_id: "DISPATCH_MAIN" }
     });
 
     socket.on('connect', () => {
-      console.log("[CONSOLE] Connected to Socket.IO Server");
-      statusIndicator.innerText = "SYSTEM: DISPATCH CONSOLE ONLINE";
-      statusIndicator.className = "online";
+      console.log("[SOCKET] Connected to Render Dispatch Engine");
+      statusBadge.innerText = "SYSTEM: DISPATCH CONSOLE ONLINE";
+      statusBadge.className = "online";
     });
 
     socket.on('disconnect', () => {
-      console.warn("[CONSOLE] Disconnected from server");
-      statusIndicator.innerText = "SYSTEM: DISCONNECTED";
-      statusIndicator.className = "offline";
+      console.warn("[SOCKET] Connection lost");
+      statusBadge.innerText = "SYSTEM: DISCONNECTED";
+      statusBadge.className = "offline";
     });
 
-    // 3. Robust Telemetry Listener (Fixes the undefined error)
+    // 3. Live Telemetry Listener (Draws and Updates Map Markers)
     socket.on('TELEMETRY_UPDATE', (data) => {
       console.log("[TELEMETRY RECEIVED]", data);
 
       const unitId = data.unit_id || "HPG_UNIT_1";
-      
-      // Robust coordinate extractor (checks flat vs nested payload)
-      let lat = data.lat || data.latitude;
-      let lng = data.lng || data.longitude;
+      const lat = Number(data.lat || data.latitude);
+      const lng = Number(data.lng || data.longitude);
 
-      if (!lat && data.telemetry) {
-        lat = data.telemetry.lat || data.telemetry.latitude;
-        lng = data.telemetry.lng || data.telemetry.longitude;
-      }
-
-      // Safe extraction for speed and battery
-      const speed = data.speed || (data.telemetry && data.telemetry.current_speed_kmh) || 0;
-      const battery = data.battery || (data.telemetry && data.telemetry.phone_battery_pct) || 0;
-      const status = data.status || (data.telemetry && data.telemetry.status) || 'PATROLLING';
-
-      // Skip invalid or 0.0 coordinates
+      // Validate coordinates (Skip 0.0 null island)
       if (!lat || !lng || (lat === 0 && lng === 0)) {
-        console.warn(`[MAP] Ignored invalid/zero coordinates for ${unitId}: (${lat}, ${lng})`);
+        console.warn(`[MAP] Ignored invalid coordinates for ${unitId}: (${lat}, ${lng})`);
         return;
       }
 
-      // Add unit to target select dropdown if missing
+      // Add unit to target select dropdown if not already present
       const targetSelect = document.getElementById('target-unit-select');
       let exists = false;
       for (let i = 0; i < targetSelect.options.length; i++) {
@@ -189,36 +177,87 @@
         targetSelect.appendChild(opt);
       }
 
-      // Update or Create Map Marker
+      // Create marker or update position
       if (!markers[unitId]) {
         markers[unitId] = L.marker([lat, lng]).addTo(map);
-        map.setView([lat, lng], 15); // Center map on unit
+        map.setView([lat, lng], 15); // Auto-focus first report
       } else {
         markers[unitId].setLatLng([lat, lng]);
       }
 
       markers[unitId].bindPopup(`
         <b>${unitId}</b><br>
-        Speed: ${speed} km/h<br>
-        Battery: ${battery}%<br>
-        Status: ${status}
+        Speed: ${data.speed || 0} km/h<br>
+        Battery: ${data.battery || 0}%<br>
+        Status: ${data.status || 'PATROLLING'}
       `);
     });
 
-    // 4. Remote Action Command Handlers
+    // 4. Remote Override Commands Handler
     function sendDispatchOverride(action) {
       const selectedUnit = document.getElementById('target-unit-select').value;
-      console.log(`[DISPATCH COMMAND] Sending ${action} to ${selectedUnit}`);
-      
       socket.emit('DISPATCH_COMMAND', {
         target_unit: selectedUnit,
         action: action,
         timestamp: new Date()
       });
 
-      appendChatMessage("System", `Override Command Executed: ${action} -> Target: ${selectedUnit}`);
+      appendChatMessage("System", `Command Dispatched: [${action}] -> Target: ${selectedUnit}`);
     }
 
+    document.getElementById('btn-force-cam').addEventListener('click', () => sendDispatchOverride('FORCE_CAMERA_STREAM'));
+    document.getElementById('btn-force-mic').addEventListener('click', () => sendDispatchOverride('FORCE_MIC_STREAM'));
+    document.getElementById('btn-force-alarm').addEventListener('click', () => sendDispatchOverride('FORCE_ALARM'));
+    document.getElementById('btn-ping-telemetry').addEventListener('click', () => sendDispatchOverride('PING_TELEMETRY'));
+
+    // 5. PTT Voice Engine (Record and Stream via Sockets)
+    let mediaRecorder = null;
+    const pttBtn = document.getElementById('ptt-btn');
+
+    pttBtn.addEventListener('mousedown', async () => {
+      const selectedUnit = document.getElementById('target-unit-select').value;
+      pttBtn.style.background = "#dc2626";
+      pttBtn.innerText = "TRANSMITTING VOICE...";
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              socket.emit('AUDIO_STREAM_CHUNK', {
+                target_unit: selectedUnit,
+                sender: 'DISPATCH_MAIN',
+                audio_data: reader.result
+              });
+            };
+            reader.readAsArrayBuffer(event.data);
+          }
+        };
+
+        mediaRecorder.start(250); // Send 250ms chunks for real-time audio
+      } catch (err) {
+        console.error("PTT Mic error:", err);
+        alert("Microphone permission required for Push-To-Talk.");
+        stopPTT();
+      }
+    });
+
+    pttBtn.addEventListener('mouseup', stopPTT);
+    pttBtn.addEventListener('mouseleave', stopPTT);
+
+    function stopPTT() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+      }
+      pttBtn.style.background = "#16a34a";
+      pttBtn.innerText = "HOLD TO TALK (PTT)";
+    }
+
+    // 6. Text Chat Handler
     function appendChatMessage(sender, text) {
       const chatBox = document.getElementById('chat-messages');
       const msgDiv = document.createElement('div');
@@ -228,26 +267,19 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Event Listeners for Dispatch Controls
-    document.getElementById('btn-force-cam').addEventListener('click', () => sendDispatchOverride('FORCE_CAMERA_STREAM'));
-    document.getElementById('btn-force-mic').addEventListener('click', () => sendDispatchOverride('FORCE_MIC_STREAM'));
-    document.getElementById('btn-force-alarm').addEventListener('click', () => sendDispatchOverride('FORCE_ALARM'));
-    document.getElementById('btn-ping-telemetry').addEventListener('click', () => sendDispatchOverride('PING_TELEMETRY'));
-
-    // Text Chat Event Listeners
     document.getElementById('btn-send-chat').addEventListener('click', () => {
       const input = document.getElementById('chat-input');
       if (input.value.trim() !== '') {
-        const msgText = input.value;
+        const text = input.value;
         const target = document.getElementById('target-unit-select').value;
-        
+
         socket.emit('CHAT_MESSAGE', {
           target_unit: target,
           sender: 'DISPATCH_MAIN',
-          text: msgText
+          text: text
         });
 
-        appendChatMessage('DISPATCH_MAIN', msgText);
+        appendChatMessage('DISPATCH_MAIN', text);
         input.value = '';
       }
     });
