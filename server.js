@@ -1,10 +1,12 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 
+// Enable Socket.IO with global CORS for web clients and Android
 const io = new Server(server, {
   cors: {
     origin: '*',
@@ -12,61 +14,97 @@ const io = new Server(server, {
   }
 });
 
-// Serve web frontend files if needed
-app.use(express.static('public'));
+// Serve web frontend files from the 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Store active unit states in memory
+const activeUnits = {};
 
 io.on('connection', (socket) => {
-  console.log(`\n========================================`);
-  console.log(`[SOCKET CONNECTED] ID: ${socket.id}`);
-  console.log(`Query Params:`, socket.handshake.query);
-  console.log(`========================================\n`);
+  const queryUnitId = socket.handshake.query.unit_id;
+  const queryRole = socket.handshake.query.role;
 
-  // 1. Device Registration Event Listener
+  console.log(`\n----------------------------------------`);
+  console.log(`[CONNECTED] Socket ID: ${socket.id}`);
+  if (queryUnitId) console.log(`[UNIT INFO] ID: ${queryUnitId} | Role: ${queryRole}`);
+  console.log(`----------------------------------------\n`);
+
+  // Handle unit registration
   socket.on('REGISTER_DEVICE', (data) => {
-    console.log(`[EVENT: REGISTER_DEVICE] Received from ${socket.id}:`, data);
-    
-    // Store unit context on the socket instance
-    socket.unit_id = data.unit_id;
-    socket.role = data.role;
+    console.log(`[REGISTER_DEVICE]`, data);
+    socket.unit_id = data.unit_id || queryUnitId;
+    socket.role = data.role || queryRole;
 
-    // Join room for targeting specific units
-    if (data.unit_id) {
-      socket.join(data.unit_id);
+    if (socket.unit_id) {
+      socket.join(socket.unit_id);
+      activeUnits[socket.unit_id] = {
+        unit_id: socket.unit_id,
+        socket_id: socket.id,
+        status: 'ONLINE',
+        last_seen: new Date()
+      };
+      
+      // Notify all connected web dashboards
+      io.emit('DEVICE_REGISTERED', activeUnits[socket.unit_id]);
     }
-
-    // Broadcast registration to all connected web dashboards
-    io.emit('DEVICE_REGISTERED', data);
   });
 
-  // 2. Telemetry Report Listener (Android -> Server -> Dashboard)
+  // Handle live telemetry incoming from Android
   socket.on('TELEMETRY_REPORT', (data) => {
-    console.log(`[EVENT: TELEMETRY_REPORT] Payload received:`, JSON.stringify(data, null, 2));
+    const unitId = data.unit_id || socket.unit_id;
+    
+    // Normalize coordinates for Leaflet map compatibility
+    const lat = data.lat || data.latitude || (data.telemetry && data.telemetry.lat);
+    const lng = data.lng || data.longitude || (data.telemetry && data.telemetry.lng);
 
-    // Re-broadcast to web clients (Leaflet map relies on this)
-    io.emit('TELEMETRY_UPDATE', data);
+    console.log(`[TELEMETRY_REPORT] Unit: ${unitId} | Lat: ${lat}, Lng: ${lng}`);
+
+    const broadcastPayload = {
+      unit_id: unitId,
+      lat: lat,
+      lng: lng,
+      latitude: lat,
+      longitude: lng,
+      speed: data.current_speed_kmh || (data.telemetry && data.telemetry.current_speed_kmh) || 0,
+      battery: data.phone_battery_pct || (data.telemetry && data.telemetry.phone_battery_pct) || 0,
+      telemetry: data.telemetry || data,
+      timestamp: new Date()
+    };
+
+    // Store latest state
+    if (unitId) {
+      activeUnits[unitId] = { ...activeUnits[unitId], ...broadcastPayload, status: 'ONLINE' };
+    }
+
+    // CRITICAL FIX: Broadcast payload out to ALL connected web browser dashboards
+    io.emit('TELEMETRY_UPDATE', broadcastPayload);
   });
 
-  // 3. Fallback Location Update Listener
-  socket.on('LOCATION_UPDATE', (data) => {
-    console.log(`[EVENT: LOCATION_UPDATE] Payload received:`, JSON.stringify(data, null, 2));
-    io.emit('TELEMETRY_UPDATE', data);
-  });
-
-  // 4. Catch-all Debugger (Logs ANY event emitted by Android)
-  socket.onAny((eventName, ...args) => {
-    if (!['TELEMETRY_REPORT', 'LOCATION_UPDATE', 'REGISTER_DEVICE'].includes(eventName)) {
-      console.log(`[UNKNOWN EVENT RECEIVED] Name: "${eventName}" | Data:`, args);
+  // Relay Dispatcher Commands (Dashboard -> Android Device)
+  socket.on('DISPATCH_COMMAND', (command) => {
+    console.log(`[DISPATCH_COMMAND] Targeting ${command.target_unit}:`, command);
+    if (command.target_unit) {
+      // Send command directly to the target Android unit room
+      io.to(command.target_unit).emit('EXECUTE_OVERRIDE', command);
+    } else {
+      // Broadcast to all units if no specific target is set
+      io.emit('EXECUTE_OVERRIDE', command);
     }
   });
 
-  // 5. Disconnect handling
+  // Disconnect handling
   socket.on('disconnect', (reason) => {
-    console.log(`[SOCKET DISCONNECTED] ID: ${socket.id} | Unit: ${socket.unit_id || 'Unknown'} | Reason: ${reason}`);
-    io.emit('DEVICE_OFFLINE', { unit_id: socket.unit_id });
+    console.log(`[DISCONNECTED] Socket ID: ${socket.id} | Unit: ${socket.unit_id || 'Unknown'} | Reason: ${reason}`);
+    if (socket.unit_id && activeUnits[socket.unit_id]) {
+      activeUnits[socket.unit_id].status = 'OFFLINE';
+      io.emit('DEVICE_OFFLINE', { unit_id: socket.unit_id });
+    }
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`HPG Dispatch Engine running on port ${PORT}`);
+  console.log(`==================================================`);
+  console.log(`HPG Dispatch System Server listening on port ${PORT}`);
+  console.log(`==================================================`);
 });

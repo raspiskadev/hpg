@@ -48,12 +48,17 @@
     #video-container { width: 280px; background: #000; border-radius: 8px; border: 1px solid #334155; overflow: hidden; position: relative; }
     video { width: 100%; height: 100%; object-fit: cover; }
     .video-label { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.7); padding: 2px 6px; font-size: 10px; border-radius: 4px; }
+    
+    #status-indicator { font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 4px; margin-bottom: 8px; text-align: center; }
+    .online { background: #15803d; color: white; }
+    .offline { background: #b91c1c; color: white; }
   </style>
 </head>
 <body>
 
   <!-- LEFT SIDEBAR: UNIT STATUS & COMMAND OVERRIDES -->
   <div id="sidebar">
+    <div id="status-indicator" class="offline">SYSTEM: CONNECTING...</div>
     <div class="card">
       <h3>Target Field Unit</h3>
       <select id="target-unit-select">
@@ -116,90 +121,140 @@
   <!-- External JS Libraries -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script src="dispatcher-console.js"></script>
 
   <!-- Application Controller Code -->
   <script>
-    // 1. Initialize Map
-    const map = L.map('map').setView([14.5995, 120.9842], 12); // Default Manila coordinates
+    // 1. Initialize Map Centered on Manila
+    const map = L.map('map').setView([14.5995, 120.9842], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
     const markers = {};
+    const statusIndicator = document.getElementById('status-indicator');
 
-    // 2. Initialize Dispatcher Console Engine
-    const dispatchConsole = new DispatcherConsole({
-      serverUrl: window.location.origin, // Connects automatically to Render server URL
-      dispatcherId: "DISPATCH_MAIN",
-
-      onMessageReceived: (data) => {
-        const chatBox = document.getElementById('chat-messages');
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `msg ${data.sender === 'DISPATCH_MAIN' ? 'msg-sent' : 'msg-recv'}`;
-        msgDiv.innerHTML = `<b>${data.sender}:</b> ${data.text || '[Media Attachment]'}`;
-        chatBox.appendChild(msgDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
-      },
-
-      onTelemetryReceived: (data) => {
-        const { unit_id, telemetry } = data;
-        const { lat, lng, current_speed_kmh, status } = telemetry;
-
-        // Update or create map markers dynamically
-        if (!markers[unit_id]) {
-          markers[unit_id] = L.marker([lat, lng]).addTo(map).bindPopup(unit_id);
-        } else {
-          markers[unit_id].setLatLng([lat, lng]);
-        }
-        markers[unit_id].setPopupContent(`<b>${unit_id}</b><br>Speed: ${current_speed_kmh} km/h<br>Status: ${status}`);
-      },
-
-      onRemoteStreamAdded: (unitId, stream) => {
-        const videoElem = document.getElementById('remote-video');
-        videoElem.srcObject = stream;
-        videoElem.muted = false;
-        document.getElementById('video-unit-name').innerText = unitId;
-      }
+    // 2. Initialize Direct Socket.IO Connection (Fallback-safe)
+    const socket = io(window.location.origin, {
+      query: { role: "DISPATCHER" }
     });
 
-    // 3. UI Event Listeners
-    const targetSelect = document.getElementById('target-unit-select');
-    targetSelect.addEventListener('change', (e) => dispatchConsole.setSelectedUnit(e.target.value));
+    socket.on('connect', () => {
+      console.log("[CONSOLE] Connected to Socket.IO Server");
+      statusIndicator.innerText = "SYSTEM: DISPATCH CONSOLE ONLINE";
+      statusIndicator.className = "online";
+    });
 
-    // PTT Radio Transmission
-    const pttBtn = document.getElementById('ptt-btn');
-    pttBtn.addEventListener('mousedown', () => dispatchConsole.startPTTTransmission());
-    pttBtn.addEventListener('mouseup', () => dispatchConsole.stopPTTTransmission());
+    socket.on('disconnect', () => {
+      console.warn("[CONSOLE] Disconnected from server");
+      statusIndicator.innerText = "SYSTEM: DISCONNECTED";
+      statusIndicator.className = "offline";
+    });
 
-    // Text Chat
+    // 3. Robust Telemetry Listener (Fixes the undefined error)
+    socket.on('TELEMETRY_UPDATE', (data) => {
+      console.log("[TELEMETRY RECEIVED]", data);
+
+      const unitId = data.unit_id || "HPG_UNIT_1";
+      
+      // Robust coordinate extractor (checks flat vs nested payload)
+      let lat = data.lat || data.latitude;
+      let lng = data.lng || data.longitude;
+
+      if (!lat && data.telemetry) {
+        lat = data.telemetry.lat || data.telemetry.latitude;
+        lng = data.telemetry.lng || data.telemetry.longitude;
+      }
+
+      // Safe extraction for speed and battery
+      const speed = data.speed || (data.telemetry && data.telemetry.current_speed_kmh) || 0;
+      const battery = data.battery || (data.telemetry && data.telemetry.phone_battery_pct) || 0;
+      const status = data.status || (data.telemetry && data.telemetry.status) || 'PATROLLING';
+
+      // Skip invalid or 0.0 coordinates
+      if (!lat || !lng || (lat === 0 && lng === 0)) {
+        console.warn(`[MAP] Ignored invalid/zero coordinates for ${unitId}: (${lat}, ${lng})`);
+        return;
+      }
+
+      // Add unit to target select dropdown if missing
+      const targetSelect = document.getElementById('target-unit-select');
+      let exists = false;
+      for (let i = 0; i < targetSelect.options.length; i++) {
+        if (targetSelect.options[i].value === unitId) { exists = true; break; }
+      }
+      if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = unitId;
+        opt.innerText = unitId;
+        targetSelect.appendChild(opt);
+      }
+
+      // Update or Create Map Marker
+      if (!markers[unitId]) {
+        markers[unitId] = L.marker([lat, lng]).addTo(map);
+        map.setView([lat, lng], 15); // Center map on unit
+      } else {
+        markers[unitId].setLatLng([lat, lng]);
+      }
+
+      markers[unitId].bindPopup(`
+        <b>${unitId}</b><br>
+        Speed: ${speed} km/h<br>
+        Battery: ${battery}%<br>
+        Status: ${status}
+      `);
+    });
+
+    // 4. Remote Action Command Handlers
+    function sendDispatchOverride(action) {
+      const selectedUnit = document.getElementById('target-unit-select').value;
+      console.log(`[DISPATCH COMMAND] Sending ${action} to ${selectedUnit}`);
+      
+      socket.emit('DISPATCH_COMMAND', {
+        target_unit: selectedUnit,
+        action: action,
+        timestamp: new Date()
+      });
+
+      appendChatMessage("System", `Override Command Executed: ${action} -> Target: ${selectedUnit}`);
+    }
+
+    function appendChatMessage(sender, text) {
+      const chatBox = document.getElementById('chat-messages');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `msg ${sender === 'DISPATCH_MAIN' ? 'msg-sent' : 'msg-recv'}`;
+      msgDiv.innerHTML = `<b>${sender}:</b> ${text}`;
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Event Listeners for Dispatch Controls
+    document.getElementById('btn-force-cam').addEventListener('click', () => sendDispatchOverride('FORCE_CAMERA_STREAM'));
+    document.getElementById('btn-force-mic').addEventListener('click', () => sendDispatchOverride('FORCE_MIC_STREAM'));
+    document.getElementById('btn-force-alarm').addEventListener('click', () => sendDispatchOverride('FORCE_ALARM'));
+    document.getElementById('btn-ping-telemetry').addEventListener('click', () => sendDispatchOverride('PING_TELEMETRY'));
+
+    // Text Chat Event Listeners
     document.getElementById('btn-send-chat').addEventListener('click', () => {
       const input = document.getElementById('chat-input');
       if (input.value.trim() !== '') {
-        dispatchConsole.sendTextMessage(input.value);
+        const msgText = input.value;
+        const target = document.getElementById('target-unit-select').value;
+        
+        socket.emit('CHAT_MESSAGE', {
+          target_unit: target,
+          sender: 'DISPATCH_MAIN',
+          text: msgText
+        });
+
+        appendChatMessage('DISPATCH_MAIN', msgText);
         input.value = '';
       }
     });
 
-    // File Attachment Upload
-    const attachBtn = document.getElementById('btn-attach');
-    const mediaInput = document.getElementById('media-input');
-    attachBtn.addEventListener('click', () => mediaInput.click());
-    mediaInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        dispatchConsole.sendMediaAttachment(e.target.files[0]);
-      }
+    socket.on('CHAT_MESSAGE', (data) => {
+      appendChatMessage(data.sender || 'FIELD_UNIT', data.text);
     });
-
-    // Remote Overrides
-    document.getElementById('btn-force-cam').addEventListener('click', () => dispatchConsole.executeRemoteOverride('FORCE_CAMERA_STREAM'));
-    document.getElementById('btn-force-mic').addEventListener('click', () => dispatchConsole.executeRemoteOverride('FORCE_MIC_STREAM'));
-    document.getElementById('btn-force-alarm').addEventListener('click', () => dispatchConsole.executeRemoteOverride('FORCE_ALARM'));
-    document.getElementById('btn-ping-telemetry').addEventListener('click', () => dispatchConsole.executeRemoteOverride('PING_TELEMETRY'));
-
-    // WebRTC Calls
-    document.getElementById('btn-call-unit').addEventListener('click', () => dispatchConsole.startCall(targetSelect.value, true));
-    document.getElementById('btn-end-call').addEventListener('click', () => dispatchConsole.endCall(targetSelect.value));
   </script>
 </body>
 </html>
