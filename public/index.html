@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HPG Tactical Dispatcher Console</title>
+  
+  <!-- Leaflet CSS for Map rendering -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { display: flex; height: 100vh; background: #0f172a; color: #f8fafc; overflow: hidden; }
+
+    /* Layout Columns */
+    #sidebar { width: 320px; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; padding: 15px; gap: 15px; }
+    #main-content { flex: 1; display: flex; flex-direction: column; }
+    #map { flex: 1; width: 100%; background: #020617; }
+    #communication-panel { height: 280px; background: #0f172a; border-top: 1px solid #334155; display: flex; padding: 15px; gap: 15px; }
+
+    /* Cards & Components */
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; }
+    h3 { font-size: 14px; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; letter-spacing: 0.5px; }
+
+    /* Target Selector Dropdown */
+    select, input[type="text"], button { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white; outline: none; margin-bottom: 8px; }
+    button { background: #2563eb; font-weight: bold; cursor: pointer; transition: background 0.2s; border: none; }
+    button:hover { background: #1d4ed8; }
+
+    /* Action Buttons */
+    .btn-danger { background: #dc2626; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-warning { background: #d97706; }
+    .btn-warning:hover { background: #b45309; }
+
+    /* Push-to-Talk (PTT) Master Button */
+    #ptt-btn { height: 50px; background: #16a34a; font-size: 16px; user-select: none; }
+    #ptt-btn:active { background: #15803d; transform: scale(0.98); }
+
+    /* Chat Terminal */
+    #chat-box { flex: 1; display: flex; flex-direction: column; }
+    #chat-messages { flex: 1; background: #020617; border-radius: 6px; padding: 10px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 6px; border: 1px solid #334155; margin-bottom: 8px; }
+    .msg { padding: 6px 10px; border-radius: 4px; max-width: 80%; }
+    .msg-sent { background: #1e40af; align-self: flex-end; }
+    .msg-recv { background: #334155; align-self: flex-start; }
+
+    /* Video Feed Container */
+    #video-container { width: 280px; background: #000; border-radius: 8px; border: 1px solid #334155; overflow: hidden; position: relative; }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    .video-label { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.7); padding: 2px 6px; font-size: 10px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- LEFT SIDEBAR: UNIT STATUS & COMMAND OVERRIDES -->
+  <div id="sidebar">
+    <div class="card">
+      <h3>Target Field Unit</h3>
+      <select id="target-unit-select">
+        <option value="ALL">Broadcast to All (Group)</option>
+        <option value="HPG_UNIT_1">HPG Unit 1</option>
+        <option value="HPG_UNIT_2">HPG Unit 2</option>
+      </select>
+    </div>
+
+    <!-- Push-To-Talk Radio -->
+    <div class="card">
+      <h3>Tactical Radio (PTT)</h3>
+      <button id="ptt-btn">HOLD TO TALK (PTT)</button>
+    </div>
+
+    <!-- Emergency Overrides -->
+    <div class="card">
+      <h3>Dispatch Overrides</h3>
+      <button id="btn-force-cam" class="btn-warning">Force Remote Camera</button>
+      <button id="btn-force-mic" class="btn-warning">Force Remote Mic Stream</button>
+      <button id="btn-force-alarm" class="btn-danger">Trigger Remote Siren</button>
+      <button id="btn-ping-telemetry">Ping Unit Telemetry</button>
+    </div>
+
+    <!-- Audio/Video Controls -->
+    <div class="card">
+      <h3>WebRTC Calling</h3>
+      <button id="btn-call-unit">Start Video Call</button>
+      <button id="btn-end-call" class="btn-danger">End Active Call</button>
+    </div>
+  </div>
+
+  <!-- MAIN AREA: LEAFLET MAP & COMMUNICATION PANEL -->
+  <div id="main-content">
+    <div id="map"></div>
+
+    <div id="communication-panel">
+      <!-- Chat Terminal -->
+      <div id="chat-box" class="card">
+        <h3>Dispatch Command Chat</h3>
+        <div id="chat-messages">
+          <div class="msg msg-recv"><b>System:</b> Tactical Dispatch Console Online.</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="chat-input" placeholder="Type command message or task..." style="margin-bottom:0;" />
+          <input type="file" id="media-input" style="display:none;" accept="image/*,video/*,audio/*" />
+          <button id="btn-attach" style="width: auto; background: #475569;">📎</button>
+          <button id="btn-send-chat" style="width: 100px;">Send</button>
+        </div>
+      </div>
+
+      <!-- Remote Video Stream Monitor -->
+      <div id="video-container">
+        <video id="remote-video" autoplay playsinline muted></video>
+        <div class="video-label">LIVE FEED: <span id="video-unit-name">NONE</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- External JS Libraries -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="dispatcher-console.js"></script>
+
+  <!-- Application Controller Code -->
+  <script>
+    // 1. Initialize Map
+    const map = L.map('map').setView([14.5995, 120.9842], 12); // Default Manila coordinates
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    const markers = {};
+
+    // 2. Initialize Dispatcher Console Engine
+    const dispatchConsole = new DispatcherConsole({
+      serverUrl: window.location.origin, // Connects automatically to Render server URL
+      dispatcherId: "DISPATCH_MAIN",
+
+      onMessageReceived: (data) => {
+        const chatBox = document.getElementById('chat-messages');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `msg ${data.sender === 'DISPATCH_MAIN' ? 'msg-sent' : 'msg-recv'}`;
+        msgDiv.innerHTML = `<b>${data.sender}:</b> ${data.text || '[Media Attachment]'}`;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      },
+
+      onTelemetryReceived: (data) => {
+        const { unit_id, telemetry } = data;
+        const { lat, lng, current_speed_kmh, status } = telemetry;
+
+        // Update or create map markers dynamically
+        if (!markers[unit_id]) {
+          markers[unit_id] = L.marker([lat, lng]).addTo(map).bindPopup(unit_id);
+        } else {
+          markers[unit_id].setLatLng([lat, lng]);
+        }
+        markers[unit_id].setPopupContent(`<b>${unit_id}</b><br>Speed: ${current_speed_kmh} km/h<br>Status: ${status}`);
+      },
+
+      onRemoteStreamAdded: (unitId, stream) => {
+        const videoElem = document.getElementById('remote-video');
+        videoElem.srcObject = stream;
+        videoElem.muted = false;
+        document.getElementById('video-unit-name').innerText = unitId;
+      }
+    });
+
+    // 3. UI Event Listeners
+    const targetSelect = document.getElementById('target-unit-select');
+    targetSelect.addEventListener('change', (e) => dispatchConsole.setSelectedUnit(e.target.value));
+
+    // PTT Radio Transmission
+    const pttBtn = document.getElementById('ptt-btn');
+    pttBtn.addEventListener('mousedown', () => dispatchConsole.startPTTTransmission());
+    pttBtn.addEventListener('mouseup', () => dispatchConsole.stopPTTTransmission());
+
+    // Text Chat
+    document.getElementById('btn-send-chat').addEventListener('click', () => {
+      const input = document.getElementById('chat-input');
+      if (input.value.trim() !== '') {
+        dispatchConsole.sendTextMessage(input.value);
+        input.value = '';
+      }
+    });
+
+    // File Attachment Upload
+    const attachBtn = document.getElementById('btn-attach');
+    const mediaInput = document.getElementById('media-input');
+    attachBtn.addEventListener('click', () => mediaInput.click());
+    mediaInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        dispatchConsole.sendMediaAttachment(e.target.files[0]);
+      }
+    });
+
+    // Remote Overrides
+    document.getElementById('btn-force-cam').addEventListener('click', () => dispatchConsole.executeRemoteOverride('FORCE_CAMERA_STREAM'));
+    document.getElementById('btn-force-mic').addEventListener('click', () => dispatchConsole.executeRemoteOverride('FORCE_MIC_STREAM'));
+    document.getElementById('btn-force-alarm').addEventListener('click', () => dispatchConsole.executeRemoteOverride('FORCE_ALARM'));
+    document.getElementById('btn-ping-telemetry').addEventListener('click', () => dispatchConsole.executeRemoteOverride('PING_TELEMETRY'));
+
+    // WebRTC Calls
+    document.getElementById('btn-call-unit').addEventListener('click', () => dispatchConsole.startCall(targetSelect.value, true));
+    document.getElementById('btn-end-call').addEventListener('click', () => dispatchConsole.endCall(targetSelect.value));
+  </script>
+</body>
+</html>
