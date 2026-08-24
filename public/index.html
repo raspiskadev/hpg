@@ -1,405 +1,399 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PNP-HPG Tactical Dispatcher Console</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HPG Tactical Telematics | Command & Control Center</title>
 
-  <!-- Leaflet CSS for Map rendering -->
+  <!-- Tailwind CSS & FontAwesome Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Leaflet CSS for Map Rendering -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
   <style>
-    :root {
-      --bg-main: #f4f6f9;
-      --bg-card: #ffffff;
-      --border-color: #cbd5e1;
-      --text-dark: #0f172a;
-      --text-muted: #64748b;
-      --hpg-blue: #0d3b66;
-      --hpg-gold: #f4d35e;
-      --hpg-red: #d62828;
-      --hpg-green: #2a9d8f;
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    
+    /* Map Marker Pulse Animation */
+    .pulse-marker-hpg {
+      box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7);
+      border-radius: 50%;
+      animation: pulse-gold 2s infinite;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    body {
-      background-color: var(--bg-main);
-      color: var(--text-dark);
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    /* Top Navigation Bar */
-    header {
-      background-color: var(--hpg-blue);
-      color: #ffffff;
-      padding: 10px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      z-index: 1000;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .brand img {
-      height: 48px;
-      width: auto;
-      object-fit: contain;
-    }
-
-    .brand-title h1 {
-      font-size: 1.2rem;
-      letter-spacing: 1px;
-      color: #ffffff;
-      text-transform: uppercase;
-    }
-
-    .brand-title span {
-      font-size: 0.75rem;
-      color: var(--hpg-gold);
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-
-    .system-status {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      font-size: 0.85rem;
-    }
-
-    .status-badge {
-      background: rgba(255, 255, 255, 0.15);
-      padding: 5px 12px;
-      border-radius: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    /* Main Console Grid */
-    .console-container {
-      display: grid;
-      grid-template-columns: 320px 1fr 340px;
-      flex: 1;
-      gap: 12px;
-      padding: 12px;
-      height: calc(100vh - 68px);
-    }
-
-    .panel {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      overflow: hidden;
-    }
-
-    .panel-header {
-      background-color: #f8fafc;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border-color);
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--hpg-blue);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      text-transform: uppercase;
-    }
-
-    /* Panel Left: Units List */
-    .unit-item {
-      padding: 12px 14px;
-      border-bottom: 1px solid #f1f5f9;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .unit-item:hover, .unit-item.active {
-      background-color: #eff6ff;
-      border-left: 4px solid var(--hpg-blue);
-    }
-
-    .unit-header {
-      display: flex;
-      justify-content: space-between;
-      font-weight: 600;
-      font-size: 0.9rem;
-    }
-
-    .unit-stats {
-      display: flex;
-      gap: 12px;
-      margin-top: 6px;
-      font-size: 0.78rem;
-      color: var(--text-muted);
-    }
-
-    /* Panel Center: Map & PTT Controls */
-    #map {
-      flex: 1;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-    }
-
-    .ptt-bar {
-      padding: 12px;
-      background: #f8fafc;
-      border-top: 1px solid var(--border-color);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .btn-ptt {
-      flex: 1;
-      background-color: var(--hpg-blue);
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 6px;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: background 0.2s;
-    }
-
-    .btn-ptt:active {
-      background-color: var(--hpg-red);
-    }
-
-    /* Panel Right: Command Overrides & CAD Chat */
-    .override-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      padding: 12px;
-    }
-
-    .btn-cmd {
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid var(--border-color);
-      background: #ffffff;
-      color: var(--text-dark);
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s;
-    }
-
-    .btn-cmd:hover {
-      border-color: var(--hpg-blue);
-      color: var(--hpg-blue);
-      background: #f0f7ff;
-    }
-
-    .btn-cmd.danger:hover {
-      border-color: var(--hpg-red);
-      color: var(--hpg-red);
-      background: #fef2f2;
-    }
-
-    .chat-box {
-      flex: 1;
-      padding: 12px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      background: #f8fafc;
-    }
-
-    .chat-msg {
-      background: white;
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
-      font-size: 0.82rem;
-    }
-
-    .chat-input-bar {
-      display: flex;
-      padding: 8px;
-      border-top: 1px solid var(--border-color);
-      background: white;
-    }
-
-    .chat-input-bar input {
-      flex: 1;
-      padding: 8px;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      outline: none;
-    }
-
-    .chat-input-bar button {
-      background: var(--hpg-blue);
-      color: white;
-      border: none;
-      padding: 0 12px;
-      margin-left: 6px;
-      border-radius: 4px;
-      cursor: pointer;
+    @keyframes pulse-gold {
+      0% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(234, 179, 8, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
     }
   </style>
 </head>
-<body>
+<body class="bg-slate-900 font-sans text-slate-100 antialiased h-screen flex flex-col overflow-hidden">
 
-  <!-- Top Header Navigation -->
-  <header>
-    <div class="brand">
-      <!-- Official PNP HPG Logo Seal -->
-      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Highway_Patrol_Group.png/500px-Highway_Patrol_Group.png" alt="PNP HPG Seal" />
-      <div class="brand-title">
-        <h1>PNP Highway Patrol Group</h1>
-        <span>TACTICAL DISPATCH & INTERCEPT COMMAND</span>
+  <!-- TOP NAVIGATION BAR -->
+  <header class="sticky top-0 z-50 flex h-16 w-full shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950 px-6 shadow-md">
+    <div class="flex items-center gap-3">
+      <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-yellow-500 text-slate-950 font-black text-lg">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <div>
+        <span class="text-lg font-black tracking-wider text-white">PNP-HPG</span>
+        <span class="text-xs text-yellow-500 font-bold block -mt-1 tracking-widest">TACTICAL COMMAND</span>
       </div>
     </div>
-    <div class="system-status">
-      <div class="status-badge"><i class="fa-solid fa-satellite-dish"></i> CAD Server: ONLINE</div>
-      <div class="status-badge"><i class="fa-solid fa-shield-halved"></i> Region: NCR HQ</div>
+
+    <nav class="flex items-center gap-1 text-sm font-medium">
+      <a href="#" class="rounded-lg bg-yellow-500/10 px-4 py-2 font-bold text-yellow-400 border border-yellow-500/20 transition-colors flex items-center gap-2">
+        <i class="fa-solid fa-map-location-dot"></i> Live Map Dispatch
+      </a>
+      <a href="#" class="whitespace-nowrap rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white">Patrol Units</a>
+      <a href="#" class="whitespace-nowrap rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white">Incident Logs</a>
+      <a href="#" class="whitespace-nowrap rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-800 hover:text-white">Geofence Alerts</a>
+    </nav>
+
+    <div class="flex items-center gap-4">
+      <div class="text-right border-r border-slate-800 pr-4">
+        <span class="block text-[10px] font-bold tracking-wider uppercase text-slate-400">Tactical Time (PST)</span>
+        <span id="live-clock" class="block text-sm font-mono font-bold text-yellow-400">11:00:00 PST</span>
+      </div>
+      <button class="relative rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-300 hover:bg-slate-800">
+        <i class="fa-solid fa-bell text-sm"></i>
+        <span class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
+      </button>
+      <div class="flex items-center gap-2.5">
+        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500 text-xs font-black text-slate-950 border-2 border-yellow-400">
+          HQ
+        </div>
+        <div class="flex flex-col text-left text-sm leading-tight">
+          <span class="font-bold text-white text-xs">DISPATCHER 01</span>
+          <span class="text-[10px] font-semibold text-yellow-500">Command Operations</span>
+        </div>
+      </div>
     </div>
   </header>
 
-  <!-- Console Content -->
-  <div class="console-container">
+  <!-- MAIN TWO-COLUMN DASHBOARD AREA -->
+  <div class="flex flex-1 w-full overflow-hidden">
 
-    <!-- Left Panel: Active Patrol Fleet -->
-    <div class="panel">
-      <div class="panel-header">
-        <span><i class="fa-solid fa-motorcycle"></i> Active Field Units</span>
-        <span id="unit-count">0 Active</span>
-      </div>
-      <div id="unit-list" style="overflow-y: auto; flex: 1;">
-        <div class="unit-item active" onclick="selectUnit('HPG_GROUP_ALL')">
-          <div class="unit-header">
-            <span>HPG_GROUP_ALL</span>
-            <span style="color: var(--hpg-blue);">BROADCAST</span>
-          </div>
-          <div class="unit-stats">
-            <span>Target: All Regional Patrol Units</span>
-          </div>
+    <!-- LEFT SIDEBAR: PATROL DETAILS, ENGINE IMMOBILIZER & DISPATCH ALERT -->
+    <aside class="w-96 border-r border-slate-800 bg-slate-950 flex flex-col h-full overflow-y-auto shrink-0 shadow-xl z-10">
+      
+      <!-- System Connection Badge -->
+      <div class="p-4 border-b border-slate-800/80 bg-slate-900/50">
+        <div id="status-badge" class="flex items-center justify-between rounded-xl p-3 text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">
+          <span class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-slate-500"></span>
+            COMMAND LINK OFFLINE
+          </span>
+          <span class="font-mono text-[10px]">OFFLINE</span>
         </div>
       </div>
-    </div>
 
-    <!-- Center Panel: GIS Map & PTT Controls -->
-    <div class="panel">
-      <div id="map"></div>
-      <div class="ptt-bar">
-        <button class="btn-ptt" id="ptt-button">
-          <i class="fa-solid fa-microphone"></i> HOLD TO TRANSMIT VOICE (PTT)
-        </button>
-      </div>
-    </div>
+      <!-- PATROL OFFICER PROFILE CARD -->
+      <div class="p-4 border-b border-slate-800 bg-slate-900/30">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-yellow-500 font-black text-slate-950 text-sm shadow-md tracking-wider">
+              HPG
+            </div>
+            <div>
+              <span id="rider-unit-id" class="font-mono text-[10px] font-bold text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded">HPG-PATROL-01</span>
+              <h2 id="rider-name" class="font-bold text-white text-base mt-0.5">Patrol Unit Alpha</h2>
+            </div>
+          </div>
+          <span id="rider-status" class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            PATROLLING
+          </span>
+        </div>
 
-    <!-- Right Panel: Remote Intercept Controls & CAD Comms -->
-    <div class="panel">
-      <div class="panel-header">
-        <span><i class="fa-solid fa-bolt"></i> Remote Overrides</span>
-      </div>
-      <div class="override-grid">
-        <button class="btn-cmd danger" onclick="triggerOverride('DISABLE_VEHICLE')">
-          <i class="fa-solid fa-power-off fa-lg"></i> CUT ENGINE
-        </button>
-        <button class="btn-cmd" onclick="triggerOverride('ENABLE_VEHICLE')">
-          <i class="fa-solid fa-key fa-lg"></i> ENABLE ENGINE
-        </button>
-        <button class="btn-cmd" onclick="triggerOverride('FORCE_POLICE_SIREN')">
-          <i class="fa-solid fa-bullhorn fa-lg"></i> SIREN ALARM
-        </button>
-        <button class="btn-cmd" onclick="triggerOverride('FORCE_CAM_STREAM')">
-          <i class="fa-solid fa-video fa-lg"></i> REAR CAM FEED
-        </button>
-      </div>
+        <!-- Live Telemetry Metrics Grid -->
+        <div class="grid grid-cols-2 gap-2 mt-4">
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 shadow-inner">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Patrol Speed</span>
+            <div class="flex items-baseline gap-1">
+              <span id="rider-speed" class="text-2xl font-black font-mono text-yellow-400">0.0</span>
+              <span class="text-xs font-medium text-slate-400">km/h</span>
+            </div>
+          </div>
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 shadow-inner">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Unit Power / Batt</span>
+            <div class="flex items-baseline gap-1">
+              <span id="rider-battery" class="text-2xl font-black font-mono text-emerald-400">0</span>
+              <span class="text-xs font-medium text-slate-400">%</span>
+            </div>
+          </div>
+        </div>
 
-      <div class="panel-header" style="border-top: 1px solid var(--border-color);">
-        <span><i class="fa-solid fa-comments"></i> CAD Radio Log</span>
-      </div>
-      <div class="chat-box" id="chat-box">
-        <div class="chat-msg">
-          <strong>DISPATCH:</strong> Console initialized. Standing by for telemetry...
+        <!-- GPS Coordinates Details -->
+        <div class="mt-3 bg-slate-900 p-3 rounded-xl border border-slate-800 text-xs font-mono text-slate-300 flex justify-between items-center">
+          <div>
+            <span class="text-[10px] text-slate-400 font-sans block uppercase font-bold">Patrol Coordinates</span>
+            <span id="rider-coords" class="font-bold text-yellow-400">14.5995, 120.9842</span>
+          </div>
+          <button id="btn-recenter" class="text-yellow-400 hover:text-yellow-300 text-[11px] font-sans font-bold underline transition">Center Cam</button>
         </div>
       </div>
-      <div class="chat-input-bar">
-        <input type="text" id="chat-input" placeholder="Transmit text instruction..." />
-        <button onclick="sendChat()"><i class="fa-solid fa-paper-plane"></i></button>
+
+      <!-- REMOTE ENGINE IMMOBILIZER / CUTOFF -->
+      <div class="p-4 border-b border-slate-800">
+        <span class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">Tactical Intercept Controls</span>
+        <div class="flex items-center justify-between p-3.5 bg-slate-900 rounded-xl border border-slate-800">
+          <div>
+            <span id="lock-status-label" class="block text-xs font-bold text-emerald-400">Vehicle Engine Active</span>
+            <span class="block text-[11px] text-slate-400">Remote Engine Cutoff Relay</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggle-vehicle-lock" class="sr-only peer" checked>
+            <div class="w-11 h-6 bg-red-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+          </label>
+        </div>
       </div>
-    </div>
+
+      <!-- DIRECT DISPATCH COMMAND ALERT -->
+      <div class="p-4 space-y-3">
+        <span class="block text-xs font-bold uppercase tracking-wider text-slate-400">Dispatch Screen Alert (CAD)</span>
+        <div class="space-y-2">
+          <textarea id="app-push-message-input" rows="3" placeholder="Type tactical alert or incident instruction for rider app..." class="w-full text-xs p-3 bg-slate-900 border border-slate-800 rounded-xl outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all text-slate-200 placeholder-slate-500"></textarea>
+          <button id="btn-send-push-alert" class="w-full bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black text-xs py-2.5 rounded-xl shadow-md transition flex items-center justify-center gap-2 uppercase tracking-wide">
+            <i class="fa-solid fa-paper-plane text-xs"></i> Send Tactical Alert
+          </button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT MAIN CONTENT: MAP VIEW & COMMAND COMMUNICATIONS -->
+    <main class="flex-1 flex flex-col h-full bg-slate-950 relative">
+      
+      <!-- LEAFLET MAP CONTAINER -->
+      <div id="map" class="flex-1 w-full h-full z-0"></div>
+
+      <!-- BOTTOM DISPATCH COMMS / RADIO LOG PANEL -->
+      <div class="h-60 bg-slate-950 border-t border-slate-800 flex p-4 z-10 shrink-0 shadow-lg">
+        
+        <div class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden">
+          <div class="px-4 py-2.5 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
+            <span class="text-xs font-bold text-yellow-400 uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-radio text-yellow-500"></i> Tactical Radio & Dispatch Channel
+            </span>
+            <span class="text-[10px] text-slate-400 font-mono">Encrypted Data Stream</span>
+          </div>
+
+          <div id="chat-messages" class="flex-1 p-3 overflow-y-auto space-y-2 text-xs font-sans">
+            <div class="p-2 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-400">
+              <span class="font-bold text-yellow-400">Command System:</span> Encrypted patrol dispatch link active. Ready for telemetry and text instructions.
+            </div>
+          </div>
+
+          <div class="p-2.5 border-t border-slate-800 bg-slate-950 flex gap-2">
+            <input type="text" id="chat-input" placeholder="Type message to Patrol Unit Alpha..." class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none focus:border-yellow-500 transition-all placeholder-slate-500" />
+            <button id="btn-send-chat" class="bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black text-xs px-5 py-2 rounded-xl transition shadow-md">
+              Send Comms
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </main>
 
   </div>
 
-  <!-- Socket.IO & Leaflet JS -->
-  <script src="/socket.io/socket.io.js"></script>
+  <!-- EXTERNAL SCRIPTS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="dispatcher-console.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <!-- CONTROLLER SCRIPT -->
   <script>
-    // Initialize Dispatcher Engine & Map
-    const consoleEngine = new DispatcherConsole();
+    const FIRST_RIDER_UNIT_ID = "HPG-PATROL-01";
+
+    // Update operational live clock
+    setInterval(() => {
+      const now = new Date();
+      document.getElementById('live-clock').innerText = now.toTimeString().split(' ')[0] + ' PST';
+    }, 1000);
+
+    const map = L.map('map', { zoomControl: false }).setView([14.5995, 120.9842], 13);
     
-    // Setup Leaflet Map with Light OSM Tiles
-    const map = L.map('map').setView([14.5995, 120.9842], 12); // Default centered on Metro Manila
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© PNP-HPG GIS Systems'
+    // Dark mode maps for tactical view
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap © CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
     }).addTo(map);
 
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
     const markers = {};
+    const statusBadge = document.getElementById('status-badge');
 
-    // PTT Listener Integration
-    const pttBtn = document.getElementById('ptt-button');
-    pttBtn.addEventListener('mousedown', () => consoleEngine.startPTTTransmission());
-    pttBtn.addEventListener('mouseup', () => consoleEngine.stopPTTTransmission());
-
-    // Live Telemetry UI Rendering
-    consoleEngine.onTelemetryReceived = (data) => {
-      if (!data.lat || !data.lng) return;
-
-      if (!markers[data.unit_id]) {
-        markers[data.unit_id] = L.marker([data.lat, data.lng]).addTo(map)
-          .bindPopup(`<b>Unit: ${data.unit_id}</b><br>Speed: ${data.speed} km/h`);
-      } else {
-        markers[data.unit_id].setLatLng([data.lat, data.lng]);
-      }
-    };
-
-    function triggerOverride(action) {
-      consoleEngine.executeRemoteOverride(action);
+    function createHPGIcon() {
+      return L.divIcon({
+        className: 'custom-hpg-icon',
+        html: `
+          <div class="relative flex items-center justify-center">
+            <div class="h-10 w-10 rounded-full bg-slate-950 border-2 border-yellow-400 shadow-xl flex items-center justify-center text-yellow-400 font-bold text-xs pulse-marker-hpg">
+              <i class="fa-solid fa-motorcycle text-sm"></i>
+            </div>
+          </div>
+        `,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
     }
 
-    function sendChat() {
+    const socket = io(window.location.origin, {
+      query: { role: "DISPATCHER", unit_id: "DISPATCH_MAIN" }
+    });
+
+    socket.on('connect', () => {
+      console.log("[SOCKET] Connected to HPG Dispatch Engine");
+      statusBadge.className = "flex items-center justify-between rounded-xl p-3 text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+      statusBadge.innerHTML = `
+        <span class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          COMMAND LINK ONLINE
+        </span>
+        <span class="font-mono text-[10px]">CONNECTED</span>
+      `;
+    });
+
+    socket.on('disconnect', () => {
+      console.warn("[SOCKET] Tactical link disconnected");
+      statusBadge.className = "flex items-center justify-between rounded-xl p-3 text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20";
+      statusBadge.innerHTML = `
+        <span class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-red-500"></span>
+          COMMAND LINK OFFLINE
+        </span>
+        <span class="font-mono text-[10px]">OFFLINE</span>
+      `;
+    });
+
+    socket.on('TELEMETRY_UPDATE', (data) => {
+      const unitId = data.unit_id || FIRST_RIDER_UNIT_ID;
+      const lat = Number(data.lat || data.latitude);
+      const lng = Number(data.lng || data.longitude);
+      const speed = Number(data.speed || 0).toFixed(1);
+      const battery = Math.round(Number(data.battery || 0));
+      const status = data.status || 'PATROLLING';
+
+      if (!lat || !lng || (lat === 0 && lng === 0)) return;
+
+      document.getElementById('rider-speed').innerText = speed;
+      document.getElementById('rider-battery').innerText = battery;
+      document.getElementById('rider-coords').innerText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      document.getElementById('rider-status').innerText = status;
+
+      if (data.is_locked !== undefined) {
+        const toggle = document.getElementById('toggle-vehicle-lock');
+        toggle.checked = !data.is_locked;
+        updateLockLabel(!data.is_locked);
+      }
+
+      if (!markers[unitId]) {
+        markers[unitId] = L.marker([lat, lng], { icon: createHPGIcon() }).addTo(map);
+        map.setView([lat, lng], 15);
+      } else {
+        markers[unitId].setLatLng([lat, lng]);
+      }
+
+      markers[unitId].bindPopup(`
+        <div class="p-1 font-sans text-xs bg-slate-900 text-slate-100">
+          <b class="text-yellow-400 text-sm">Patrol Unit Alpha</b><br>
+          <span class="text-slate-400">Unit ID: ${unitId}</span><br>
+          <span class="text-slate-200">Speed: ${speed} km/h</span><br>
+          <span class="text-slate-200">Battery: ${battery}%</span>
+        </div>
+      `);
+    });
+
+    document.getElementById('btn-recenter').addEventListener('click', () => {
+      if (markers[FIRST_RIDER_UNIT_ID]) {
+        map.setView(markers[FIRST_RIDER_UNIT_ID].getLatLng(), 16);
+      }
+    });
+
+    const lockToggle = document.getElementById('toggle-vehicle-lock');
+    lockToggle.addEventListener('change', (e) => {
+      const isEnabled = e.target.checked;
+      updateLockLabel(isEnabled);
+
+      socket.emit('DISPATCH_COMMAND', {
+        target_unit: FIRST_RIDER_UNIT_ID,
+        action: isEnabled ? 'ENABLE_VEHICLE' : 'DISABLE_VEHICLE',
+        is_locked: !isEnabled,
+        timestamp: new Date()
+      });
+
+      appendChatMessage("Command Center", `Immobilizer Relay Signal: ${isEnabled ? 'ENGINE ENABLED' : 'ENGINE IMMOBILIZED'}`);
+    });
+
+    function updateLockLabel(isEnabled) {
+      const label = document.getElementById('lock-status-label');
+      if (isEnabled) {
+        label.innerText = "Vehicle Engine Active";
+        label.className = "block text-xs font-bold text-emerald-400";
+      } else {
+        label.innerText = "Vehicle Engine Cutoff Active";
+        label.className = "block text-xs font-bold text-red-500";
+      }
+    }
+
+    document.getElementById('btn-send-push-alert').addEventListener('click', () => {
+      const messageInput = document.getElementById('app-push-message-input');
+      const text = messageInput.value.trim();
+
+      if (text !== '') {
+        socket.emit('DISPATCH_COMMAND', {
+          target_unit: FIRST_RIDER_UNIT_ID,
+          action: 'DISPLAY_SCREEN_ALERT',
+          alert_message: text,
+          timestamp: new Date()
+        });
+
+        appendChatMessage("Command Center", `Pushed CAD Alert to Screen: "${text}"`);
+        messageInput.value = '';
+      }
+    });
+
+    function appendChatMessage(sender, text) {
+      const chatBox = document.getElementById('chat-messages');
+      const msgDiv = document.createElement('div');
+      const isDispatch = sender === 'Command Center' || sender === 'Command System';
+      
+      msgDiv.className = `p-2.5 rounded-xl text-xs border ${
+        isDispatch ? 'bg-yellow-500/10 border-yellow-500/20 text-slate-200 ml-6' : 'bg-slate-900 border-slate-800 text-slate-200 mr-6 shadow-inner'
+      }`;
+      msgDiv.innerHTML = `<b class="${isDispatch ? 'text-yellow-400' : 'text-emerald-400'}">${sender}:</b> ${text}`;
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    document.getElementById('btn-send-chat').addEventListener('click', () => {
       const input = document.getElementById('chat-input');
-      if (input.value.trim() !== '') {
-        consoleEngine.sendTextMessage(input.value);
+      const text = input.value.trim();
+      if (text !== '') {
+        socket.emit('CHAT_MESSAGE', {
+          target_unit: FIRST_RIDER_UNIT_ID,
+          unit_id: FIRST_RIDER_UNIT_ID,
+          sender: 'Command Center',
+          text: text
+        });
+
+        appendChatMessage('Command Center', text);
         input.value = '';
       }
-    }
+    });
+
+    socket.on('CHAT_MESSAGE', (data) => {
+      if (data.sender !== 'Command Center') {
+        appendChatMessage(data.sender || 'Patrol Officer', data.text);
+      }
+    });
   </script>
 </body>
 </html>
