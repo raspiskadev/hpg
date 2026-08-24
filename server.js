@@ -6,41 +6,61 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// Initialize Socket.IO with permissive CORS for mobile and web apps
+// Initialize Socket.IO with permissive CORS for mobile Android app and Web Dashboard
 const io = new Server(server, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST']
   },
-  maxHttpBufferSize: 1e7 // Increase buffer to 10MB to handle binary audio/video chunks
+  maxHttpBufferSize: 1e7 // 10MB buffer for audio chunks and video binary data
 });
 
 // Serve web console static assets from the 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
 
-// In-memory registry for tracking connected units
+// In-memory registry for tracking connected patrol units
 const activeUnits = {};
+
+// Diagnostics Endpoint
+app.get('/api/active-units', (req, res) => {
+  res.json({
+    status: 'ONLINE',
+    agency: 'PNP-HPG Tactical Operations',
+    active_count: Object.keys(activeUnits).length,
+    units: activeUnits
+  });
+});
 
 io.on('connection', (socket) => {
   const queryUnitId = socket.handshake.query.unit_id;
   const queryRole = socket.handshake.query.role;
 
   console.log(`\n========================================`);
-  console.log(`[CLIENT CONNECTED] ID: ${socket.id}`);
+  console.log(`[CLIENT CONNECTED] Socket ID: ${socket.id}`);
   if (queryUnitId) console.log(`[REGISTERED UNIT] ID: ${queryUnitId} | Role: ${queryRole}`);
   console.log(`========================================\n`);
 
-  // Default join to individual room if unit_id is provided in connection handshake
+  // Auto-join unit room if unit_id passed in handshake
   if (queryUnitId) {
     socket.unit_id = queryUnitId;
+    socket.role = queryRole || 'PATROL_UNIT';
     socket.join(queryUnitId);
+
+    activeUnits[queryUnitId] = {
+      unit_id: queryUnitId,
+      socket_id: socket.id,
+      role: socket.role,
+      status: 'ONLINE',
+      last_seen: new Date()
+    };
   }
 
   // 1. DEVICE REGISTRATION
   socket.on('REGISTER_DEVICE', (data) => {
-    const unitId = data.unit_id || queryUnitId;
+    const unitId = data.unit_id || socket.unit_id || queryUnitId;
     socket.unit_id = unitId;
-    socket.role = data.role || queryRole || 'FIELD_RIDER';
+    socket.role = data.role || queryRole || 'PATROL_UNIT';
 
     if (unitId) {
       socket.join(unitId);
@@ -48,20 +68,20 @@ io.on('connection', (socket) => {
         unit_id: unitId,
         socket_id: socket.id,
         role: socket.role,
+        agency: data.agency || 'PNP-HPG',
         status: 'ONLINE',
         last_seen: new Date()
       };
 
-      console.log(`[REGISTER_DEVICE] Unit "${unitId}" bound to room "${unitId}"`);
+      console.log(`[REGISTER_DEVICE] HPG Unit "${unitId}" bound to room "${unitId}"`);
       io.emit('DEVICE_REGISTERED', activeUnits[unitId]);
     }
   });
 
-  // 2. TELEMETRY REPORTING (Android -> Server -> Dashboard)
+  // 2. TELEMETRY REPORTING (Android Field App -> Server -> Command Console)
   socket.on('TELEMETRY_REPORT', (data) => {
     const unitId = data.unit_id || socket.unit_id || 'UNKNOWN_UNIT';
 
-    // Normalize coordinates from flat or nested payloads
     const lat = data.lat || data.latitude || (data.telemetry && (data.telemetry.lat || data.telemetry.latitude));
     const lng = data.lng || data.longitude || (data.telemetry && (data.telemetry.lng || data.telemetry.longitude));
     const speed = data.speed || data.current_speed_kmh || (data.telemetry && data.telemetry.current_speed_kmh) || 0;
@@ -77,67 +97,95 @@ io.on('connection', (socket) => {
       speed: Number(speed),
       battery: Number(battery),
       status: status,
+      is_locked: data.is_locked !== undefined ? data.is_locked : false,
       timestamp: new Date()
     };
 
-    // Update active unit state memory
     if (unitId !== 'UNKNOWN_UNIT') {
-      activeUnits[unitId] = { ...activeUnits[unitId], ...normalizedPayload, status: 'ONLINE' };
+      activeUnits[unitId] = { ...activeUnits[unitId], ...normalizedPayload, status: 'ONLINE', last_seen: new Date() };
     }
 
-    // Broadcast live telemetry out to ALL connected web dashboard instances
+    // Broadcast live telemetry out to all listening dashboard consoles
     io.emit('TELEMETRY_UPDATE', normalizedPayload);
   });
 
-  // 3. DISPATCH OVERRIDE COMMANDS (Dashboard -> Target Android Device)
+  // 3. TACTICAL DISPATCH COMMANDS & ENGINE OVERRIDE (Command Console -> Target Patrol Unit)
   socket.on('DISPATCH_COMMAND', (command) => {
-    const target = command.target_unit || 'ALL';
+    const target = command.target_unit || 'HPG_GROUP_ALL';
     console.log(`[DISPATCH_COMMAND] Target: ${target} | Action: ${command.action}`);
 
-    if (target === 'ALL') {
+    if (target === 'HPG_GROUP_ALL' || target === 'ALL') {
       socket.broadcast.emit('EXECUTE_OVERRIDE', command);
     } else {
       io.to(target).emit('EXECUTE_OVERRIDE', command);
     }
   });
 
-  // 4. PUSH-TO-TALK (PTT) AUDIO RELAY
-  socket.on('AUDIO_STREAM_CHUNK', (data) => {
-    const target = data.target_unit || 'ALL';
+  socket.on('DISPATCH_OVERRIDE_COMMAND', (command) => {
+    const target = command.target_unit || 'HPG_GROUP_ALL';
+    console.log(`[OVERRIDE_COMMAND] Target: ${target} | Action: ${command.action}`);
 
-    if (target === 'ALL') {
-      socket.broadcast.emit('RECEIVE_PTT_AUDIO', data);
+    if (target === 'HPG_GROUP_ALL' || target === 'ALL') {
+      socket.broadcast.emit('EXECUTE_OVERRIDE', command);
     } else {
-      io.to(target).emit('RECEIVE_PTT_AUDIO', data);
+      io.to(target).emit('EXECUTE_OVERRIDE', command);
     }
   });
 
-  // 5. CHAT SYSTEM RELAY
+  // 4. PUSH-TO-TALK (PTT) AUDIO RELAY ENGINE
+  socket.on('PTT_AUDIO_CHUNK', (data) => {
+    const target = data.target_unit || 'HPG_GROUP_ALL';
+
+    if (target === 'HPG_GROUP_ALL' || target === 'ALL') {
+      socket.broadcast.emit('PTT_AUDIO_CHUNK', data);
+    } else {
+      io.to(target).emit('PTT_AUDIO_CHUNK', data);
+    }
+  });
+
+  // 5. CHAT & CAD INCIDENT DISPATCH MESSAGING
   socket.on('CHAT_MESSAGE', (data) => {
-    console.log(`[CHAT] ${data.sender} -> ${data.target_unit}: ${data.text}`);
-    if (data.target_unit === 'ALL') {
+    const target = data.target_unit || data.recipient || 'HPG_GROUP_ALL';
+    console.log(`[CHAT] ${data.sender} -> ${target}: ${data.text}`);
+
+    if (target === 'HPG_GROUP_ALL' || target === 'ALL') {
       io.emit('CHAT_MESSAGE', data);
     } else {
-      io.to(data.target_unit).emit('CHAT_MESSAGE', data);
-      socket.emit('CHAT_MESSAGE', data); // Echo back to sender
+      io.to(target).emit('CHAT_MESSAGE', data);
+      socket.emit('CHAT_MESSAGE', data); // Local echo
     }
   });
 
-  // 6. WEBRTC SIGNALING RELAY (For Video Calling)
-  socket.on('WEBRTC_SIGNAL', (data) => {
-    console.log(`[WEBRTC SIGNAL] ${socket.id} -> Target: ${data.target_unit}`);
-    if (data.target_unit) {
-      io.to(data.target_unit).emit('WEBRTC_SIGNAL', {
-        sender: socket.unit_id || 'DISPATCH_MAIN',
-        signal: data.signal,
-        type: data.type
-      });
+  socket.on('TACTICAL_MESSAGE', (data) => {
+    const target = data.recipient || data.target_unit || 'HPG_GROUP_ALL';
+    console.log(`[TACTICAL CAD MSG] ${data.sender} -> ${target}`);
+
+    if (target === 'HPG_GROUP_ALL' || target === 'ALL') {
+      io.emit('TACTICAL_MESSAGE', data);
+    } else {
+      io.to(target).emit('TACTICAL_MESSAGE', data);
+      socket.emit('TACTICAL_MESSAGE', data);
     }
   });
+
+  // 6. WEBRTC UNIFIED SIGNALING RELAY (Video / Duplex Audio Calls)
+  socket.on('SIGNAL_EXCHANGE', (data) => {
+    const target = data.target_id || data.target_unit;
+    console.log(`[WEBRTC SIGNAL] ${data.sender_id || socket.id} -> Target Unit: ${target}`);
+    
+    if (target) {
+      io.to(target).emit('SIGNAL_EXCHANGE', data);
+    }
+  });
+
+  // Fallbacks for legacy WebRTC individual events
+  socket.on('WEBRTC_OFFER', (data) => io.to(data.target_unit).emit('WEBRTC_OFFER', data));
+  socket.on('WEBRTC_ANSWER', (data) => io.to(data.target_unit).emit('WEBRTC_ANSWER', data));
+  socket.on('ICE_CANDIDATE', (data) => io.to(data.target_unit).emit('ICE_CANDIDATE', data));
 
   // 7. DISCONNECT HANDLING
   socket.on('disconnect', (reason) => {
-    console.log(`[DISCONNECTED] ID: ${socket.id} | Unit: ${socket.unit_id || 'Unknown'} | Reason: ${reason}`);
+    console.log(`[DISCONNECTED] Socket ID: ${socket.id} | Unit: ${socket.unit_id || 'Unknown'} | Reason: ${reason}`);
     if (socket.unit_id && activeUnits[socket.unit_id]) {
       activeUnits[socket.unit_id].status = 'OFFLINE';
       io.emit('DEVICE_OFFLINE', { unit_id: socket.unit_id });
@@ -148,6 +196,7 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`==================================================`);
-  console.log(`  HPG Dispatch Engine Running on Port ${PORT}    `);
+  console.log(`  PNP-HPG Tactical Dispatch Engine Active          `);
+  console.log(`  Listening on Port: ${PORT}                      `);
   console.log(`==================================================`);
 });

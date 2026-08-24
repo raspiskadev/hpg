@@ -1,31 +1,31 @@
 /**
- * Tactical Dispatcher Console - WebRTC & Socket.IO Engine
- * Handles PTT Audio Streams, Peer-to-Peer & Group Messaging, Media Transfers,
- * WebRTC Video/Audio Calling, and Remote Device Overrides.
+ * PNP Highway Patrol Group (HPG) Tactical Dispatcher Console
+ * Real-Time Telematics, PTT Voice Engine, CAD Dispatch, WebRTC Video/Audio Calling,
+ * and Remote Intercept Overrides.
  */
 
 class DispatcherConsole {
   constructor(config = {}) {
-    this.serverUrl = config.serverUrl || "http://localhost:3000";
+    this.serverUrl = config.serverUrl || window.location.origin;
     this.dispatcherId = config.dispatcherId || "DISPATCH_MAIN";
     this.socket = null;
 
     // Active State Trackers
-    this.selectedUnit = "ALL"; // Default target: Group Broadcast
-    this.activePeerConnections = {}; // Map of unitId -> RTCPeerConnection
-    this.mediaRecorders = {}; // PTT MediaRecorder instances
+    this.selectedUnit = "HPG_GROUP_ALL"; // Default target: Tactical Group Broadcast
+    this.activePeerConnections = {};    // Map of unitId -> RTCPeerConnection
+    this.mediaRecorders = {};           // PTT MediaRecorder instances
     this.localStream = null;
     this.remoteStreams = {};
 
-    // Ice Servers configuration (Include your Coturn STUN/TURN credentials here)
+    // RTC Configuration (Ice / STUN / TURN Servers for field WebRTC connectivity)
     this.rtcConfig = {
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
-        // { urls: "turn:your-turn-server.com:3478", username: "user", credential: "pass" }
+        // { urls: "turn:hpg-turn-server.pnp.gov.ph:3478", username: "hpg_user", credential: "hpg_password" }
       ],
     };
 
-    // Callback Hooks for UI Integration
+    // Callback Hooks for UI / DOM Integration
     this.onMessageReceived = config.onMessageReceived || null;
     this.onTelemetryReceived = config.onTelemetryReceived || null;
     this.onRemoteStreamAdded = config.onRemoteStreamAdded || null;
@@ -35,7 +35,7 @@ class DispatcherConsole {
   }
 
   /**
-   * Initialize Socket.IO connection and system event bindings
+   * Initialize Socket.IO connection and bind tactical system events
    */
   init() {
     this.socket = io(this.serverUrl, {
@@ -43,15 +43,15 @@ class DispatcherConsole {
     });
 
     this.socket.on("connect", () => {
-      console.log(`[Dispatcher] Connected to server as ${this.dispatcherId}`);
-      // Join Main Dispatcher Room & Tactical Group Room
+      console.log(`[HPG Dispatch] Connected to Command Engine as ${this.dispatcherId}`);
       this.socket.emit("REGISTER_DEVICE", {
         unit_id: this.dispatcherId,
         role: "DISPATCHER",
+        agency: "PNP-HPG",
       });
     });
 
-    // Listen for incoming messages and PTT
+    // Event listeners for tactical messages, PTT audio, and RTC signaling
     this.socket.on("TACTICAL_MESSAGE", (data) => this.handleIncomingMessage(data));
     this.socket.on("PTT_AUDIO_CHUNK", (data) => this.handleIncomingPTT(data));
     this.socket.on("SIGNAL_EXCHANGE", (data) => this.handleSignalingData(data));
@@ -61,19 +61,19 @@ class DispatcherConsole {
   }
 
   /**
-   * Set target recipient for communications ("ALL", "HPG_UNIT_1", "HPG_UNIT_2")
+   * Update target recipient for tactical communications ("HPG_GROUP_ALL", "HPG-PATROL-01", etc.)
    */
   setSelectedUnit(unitId) {
     this.selectedUnit = unitId;
-    console.log(`[Dispatcher] Target updated to: ${this.selectedUnit}`);
+    console.log(`[HPG Dispatch] Tactical Target Updated: ${this.selectedUnit}`);
   }
 
   /* =========================================================================
-     1. PUSH-TO-TALK (PTT) HALF-DUPLEX STREAMING ENGINE
+     1. PUSH-TO-TALK (PTT) HALF-DUPLEX VOICE TRANSMISSION ENGINE
      ========================================================================= */
 
   /**
-   * Start pressing PTT key (Call this on mousedown/keydown)
+   * Key-Down / Hold PTT Key - Start Audio Broadcast
    */
   async startPTTTransmission() {
     try {
@@ -91,7 +91,7 @@ class DispatcherConsole {
             this.socket.emit("PTT_AUDIO_CHUNK", {
               sender_id: this.dispatcherId,
               target_unit: this.selectedUnit,
-              priority: 0, // Dispatcher Priority Override
+              priority: 0, // Priority 0: Command Dispatcher Override (Interrupts normal traffic)
               audio_payload_base64: base64Audio,
               timestamp: Date.now(),
             });
@@ -99,16 +99,16 @@ class DispatcherConsole {
         }
       };
 
-      // Emit audio chunks every 100ms for continuous streaming
+      // Emit audio chunks every 100ms for real-time low-latency PTT
       mediaRecorder.start(100);
-      console.log(`[PTT] Transmitting to target: ${this.selectedUnit}...`);
+      console.log(`[HPG PTT] Transmitting to Target Unit/Group: ${this.selectedUnit}...`);
     } catch (err) {
-      console.error("[PTT] Failed to capture microphone:", err);
+      console.error("[HPG PTT] Microhpone Capture Error:", err);
     }
   }
 
   /**
-   * Release PTT key (Call this on mouseup/keyup)
+   * Release PTT Key - End Voice Broadcast
    */
   stopPTTTransmission() {
     if (this.mediaRecorders["PTT"]) {
@@ -116,38 +116,38 @@ class DispatcherConsole {
       recorder.stop();
       stream.getTracks().forEach((track) => track.stop());
       delete this.mediaRecorders["PTT"];
-      console.log("[PTT] Transmission ended.");
+      console.log("[HPG PTT] Radio Transmission Terminated.");
     }
   }
 
   /**
-   * Play incoming PTT audio chunks from field units
+   * Handle and play incoming PTT audio streams from HPG Patrol Units
    */
   handleIncomingPTT(data) {
-    if (data.sender_id === this.dispatcherId) return; // Ignore own echoes
+    if (data.sender_id === this.dispatcherId) return; // Prevent local audio feedback loops
 
     const audioUrl = `data:audio/webm;codecs=opus;base64,${data.audio_payload_base64}`;
     const audio = new Audio(audioUrl);
-    audio.play().catch((e) => console.error("[PTT Playback Error]", e));
+    audio.play().catch((e) => console.error("[HPG PTT Playback Error]", e));
 
     if (this.onPTTAudioChunk) this.onPTTAudioChunk(data);
   }
 
   /* =========================================================================
-     2. TEXT, MEDIA & TASK DISPATCH MESSAGING
+     2. CAD DISPATCH, TEXT MESSAGING & MEDIA ATTACHMENTS
      ========================================================================= */
 
   /**
-   * Send text message or assign a geographical target destination
+   * Dispatch text instruction or CAD incident assignment to target unit
    */
   sendTextMessage(text, taskPayload = null) {
     const payload = {
-      message_id: "msg_" + Date.now(),
+      message_id: "hpg_msg_" + Date.now(),
       sender: this.dispatcherId,
       recipient: this.selectedUnit,
       timestamp: Date.now(),
       text: text,
-      task: taskPayload, // Optional JSON object containing target lat/lng destination
+      task: taskPayload, // Optional JSON object containing target GPS target coordinates & incident data
     };
 
     this.socket.emit("TACTICAL_MESSAGE", payload);
@@ -155,14 +155,14 @@ class DispatcherConsole {
   }
 
   /**
-   * Upload and send Media Attachment (Images, Videos, Voice Recordings)
+   * Attach and upload media evidence or situation photos (Images, Videos, Voice Audio)
    */
   sendMediaAttachment(file, fileType = "IMAGE") {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => {
       const payload = {
-        message_id: "media_" + Date.now(),
+        message_id: "hpg_media_" + Date.now(),
         sender: this.dispatcherId,
         recipient: this.selectedUnit,
         timestamp: Date.now(),
@@ -175,22 +175,21 @@ class DispatcherConsole {
   }
 
   handleIncomingMessage(data) {
-    console.log("[Message Received]", data);
+    console.log("[HPG Comms Received]", data);
     if (this.onMessageReceived) this.onMessageReceived(data);
   }
 
   /* =========================================================================
-     3. FULL-DUPLEX WEBRTC VOICE & VIDEO CALLING
+     3. WEBRTC LIVE VIDEO & DUPLEX AUDIO CALLING
      ========================================================================= */
 
   /**
-   * Initiate a WebRTC Audio/Video Call to a field unit
+   * Initiate full WebRTC Video/Audio Call to an active patrol unit
    */
   async startCall(targetUnitId, includeVideo = true) {
-    console.log(`[WebRTC] Initiating call to ${targetUnitId}`);
+    console.log(`[HPG RTC] Establishing live video feed with ${targetUnitId}`);
     const peerConnection = this.createPeerConnection(targetUnitId);
 
-    // Get local camera/mic stream
     this.localStream = await navigator.mediaDevices.getUserMedia({
       audio: true,
       video: includeVideo,
@@ -200,7 +199,6 @@ class DispatcherConsole {
       peerConnection.addTrack(track, this.localStream);
     });
 
-    // Create and send SDP Offer
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
 
@@ -212,7 +210,7 @@ class DispatcherConsole {
   }
 
   /**
-   * Handle WebRTC Signaling (Offers, Answers, and ICE Candidates)
+   * Process WebRTC SDP Offers, Answers, and ICE Candidates
    */
   async handleSignalingData(data) {
     const { sender_id, signalData } = data;
@@ -225,7 +223,6 @@ class DispatcherConsole {
     if (signalData.type === "offer") {
       await pc.setRemoteDescription(new RTCSessionDescription(signalData));
       
-      // Auto-answer on dispatcher console or prompt UI
       this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       this.localStream.getTracks().forEach((track) => pc.addTrack(track, this.localStream));
 
@@ -247,7 +244,6 @@ class DispatcherConsole {
   createPeerConnection(targetUnitId) {
     const pc = new RTCPeerConnection(this.rtcConfig);
 
-    // Send ICE candidates via signaling server
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         this.socket.emit("SIGNAL_EXCHANGE", {
@@ -258,9 +254,8 @@ class DispatcherConsole {
       }
     };
 
-    // Attach incoming remote audio/video tracks
     pc.ontrack = (event) => {
-      console.log(`[WebRTC] Received remote track from ${targetUnitId}`);
+      console.log(`[HPG RTC] Incoming stream track from unit ${targetUnitId}`);
       this.remoteStreams[targetUnitId] = event.streams[0];
       if (this.onRemoteStreamAdded) {
         this.onRemoteStreamAdded(targetUnitId, event.streams[0]);
@@ -275,34 +270,34 @@ class DispatcherConsole {
     if (this.activePeerConnections[targetUnitId]) {
       this.activePeerConnections[targetUnitId].close();
       delete this.activePeerConnections[targetUnitId];
-      console.log(`[WebRTC] Call with ${targetUnitId} ended.`);
+      console.log(`[HPG RTC] Connection with ${targetUnitId} closed.`);
     }
   }
 
   /* =========================================================================
-     4. REMOTE COMMAND OVERRIDES (CAMERA, MIC, ALARM, TELEMETRY PING)
+     4. TACTICAL OVERRIDES (IMMOBILIZER, SIREN ALARM, CAM & MIC OVERRIDE)
      ========================================================================= */
 
   /**
-   * Execute forced remote command on target unit's Android background service
-   * @param {string} commandType - "FORCE_CAMERA_STREAM", "FORCE_MIC_STREAM", "FORCE_ALARM", "PING_TELEMETRY"
+   * Issue high-priority command override to patrol bike device
+   * @param {string} commandType - "FORCE_POLICE_SIREN", "DISABLE_VEHICLE_IMMOBILIZER", "ENABLE_VEHICLE_IMMOBILIZER", "FORCE_CAM_STREAM", "FORCE_MIC_STREAM"
    */
   executeRemoteOverride(commandType, targetUnitId = null) {
     const target = targetUnitId || this.selectedUnit;
-    if (target === "ALL" && commandType !== "FORCE_ALARM") {
-      console.warn("[Override] Remote stream overrides must target a specific unit.");
+    if (target === "HPG_GROUP_ALL" && commandType !== "FORCE_POLICE_SIREN") {
+      console.warn("[HPG Override] Stream and Engine overrides must specify an individual patrol unit.");
       return;
     }
 
     const payload = {
-      command_id: "cmd_" + Date.now(),
+      command_id: "hpg_cmd_" + Date.now(),
       target_unit: target,
       issuer: this.dispatcherId,
       action: commandType,
       timestamp: Date.now(),
     };
 
-    this.socket.emit("DISPATCH_OVERRIDE_COMMAND", payload);
-    console.log(`[Override Issued] Action: ${commandType} -> Target: ${target}`);
+    this.socket.emit("DISPATCH_COMMAND", payload);
+    console.log(`[HPG Override Executed] Action: ${commandType} -> Target Unit: ${target}`);
   }
 }
