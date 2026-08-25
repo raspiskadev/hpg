@@ -331,8 +331,7 @@
     // Receive incoming PTT audio from Mobile Unit
     socket.on('PTT_AUDIO_RECEIVE', (data) => {
   let rawAudio = data.audio || data.audio_base64 || '';
-  
-  // Clean off double-prefixes or extra characters if present
+
   if (rawAudio.includes('[PTT_AUDIO]:')) {
     rawAudio = rawAudio.split('[PTT_AUDIO]:')[1].trim();
   }
@@ -340,13 +339,27 @@
     rawAudio = rawAudio.substring(2);
   }
 
-  // Ensure it has a valid Data URI prefix
-  const audioSrc = rawAudio.startsWith('data:') 
-    ? rawAudio 
-    : 'data:audio/webm;base64,' + rawAudio;
+  // Handle formatted Data URIs vs Raw Base64
+  let audioSrc = rawAudio;
+  if (!rawAudio.startsWith('data:')) {
+    // Mobile apps usually send AAC, M4A, or OGG payload.
+    // Try browser-native HTML5 audio guessing:
+    audioSrc = 'data:audio/aac;base64,' + rawAudio;
+  }
 
   const audio = new Audio(audioSrc);
-  audio.play().catch(err => console.warn("PTT Autoplay blocked:", err));
+  
+  // Fallback trigger if AAC mime fails
+  audio.onerror = () => {
+    console.warn("AAC decoding failed. Trying WEBM format fallback...");
+    const fallbackSrc = 'data:audio/webm;base64,' + rawAudio;
+    const fallbackAudio = new Audio(fallbackSrc);
+    fallbackAudio.play().catch(e => console.error("PTT Audio Playback Error:", e));
+  };
+
+  audio.play().catch(err => {
+    console.warn("Autoplay blocked or decoding error:", err);
+  });
 
   appendChatMessage(data.sender || 'Mobile Unit', "🎙️ [PTT Audio Message Received]");
 });
@@ -491,18 +504,23 @@
     socket.on('CHAT_MESSAGE', (data) => {
   const messageText = data.text || data.message || '';
 
-  // Check if message contains PTT Base64 audio payload
   if (messageText.includes('[PTT_AUDIO]:')) {
     let base64Audio = messageText.split('[PTT_AUDIO]:')[1].trim();
     if (base64Audio.startsWith('//')) {
       base64Audio = base64Audio.substring(2);
     }
 
-    const audioSrc = base64Audio.startsWith('data:') 
+    let audioSrc = base64Audio.startsWith('data:') 
       ? base64Audio 
-      : 'data:audio/webm;base64,' + base64Audio;
+      : 'data:audio/aac;base64,' + base64Audio;
 
     const audio = new Audio(audioSrc);
+
+    audio.onerror = () => {
+      const fallbackAudio = new Audio('data:audio/webm;base64,' + base64Audio);
+      fallbackAudio.play().catch(e => console.error("PTT Chat Audio Fallback Error:", e));
+    };
+
     audio.play().catch(err => console.warn("PTT Chat Autoplay blocked:", err));
 
     appendChatMessage(data.sender || 'Mobile Unit', "🎙️ [PTT Audio Message Received]");
