@@ -330,10 +330,12 @@
 
     // Receive incoming PTT audio from Mobile Unit
     socket.on('PTT_AUDIO_RECEIVE', (data) => {
-      const audio = new Audio(data.audio);
-      audio.play();
-      appendChatMessage(data.sender || 'Mobile Unit', "🎙️ [PTT Audio Message Received]");
-    });
+  const audio = new Audio(data.audio);
+  audio.play().catch(err => {
+    console.warn("PTT Autoplay blocked by browser policy:", err);
+  });
+  appendChatMessage(data.sender || 'Mobile Unit', "🎙️ [PTT Audio Message Received]");
+});
 
     // --- WEBRTC VOICE & VIDEO CALL HANDLERS ---
     let peerConnection = null;
@@ -363,12 +365,17 @@
 
         // Handle Remote Stream Tracks
         peerConnection.ontrack = (event) => {
-          if (type === 'VIDEO') {
-            document.getElementById('remote-video').srcObject = event.streams[0];
-          } else {
-            document.getElementById('remote-audio').srcObject = event.streams[0];
-          }
-        };
+  const remoteVid = document.getElementById('remote-video');
+  const remoteAud = document.getElementById('remote-audio');
+
+  if (type === 'VIDEO') {
+    remoteVid.srcObject = event.streams[0];
+    remoteVid.play().catch(err => console.warn("Remote video playback prevented:", err));
+  } else {
+    remoteAud.srcObject = event.streams[0];
+    remoteAud.play().catch(err => console.warn("Remote audio playback prevented:", err));
+  }
+};
 
         // ICE Candidate dispatching
         peerConnection.onicecandidate = (event) => {
@@ -486,9 +493,14 @@
 
     // Web Audio Synthesizer Controls
     function getAudioContext() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      return audioCtx;
-    }
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
 
     function triggerHorn() {
       socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'HORN' });
