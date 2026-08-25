@@ -110,10 +110,29 @@
         </div>
       </div>
 
-      <!-- REMOTE AUDIO / LIGHT TELEMATICS OVERRIDES -->
+      <!-- REMOTE AUDIO / LIGHT / ENGINE TELEMATICS OVERRIDES -->
       <div>
         <span class="block text-[11px] font-bold uppercase text-slate-400 mb-2">Vehicle Overrides & Sound</span>
-        <div class="grid grid-cols-3 gap-2 mb-2">
+        
+        <!-- ENGINE IMMOBILIZER / LOCK SWITCH CARD -->
+        <div class="p-3 mb-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div id="lock-icon-bg" class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+              <i id="lock-icon" class="fa-solid fa-lock-open text-xs"></i>
+            </div>
+            <div>
+              <span class="block text-xs font-bold text-slate-800">Vehicle Access</span>
+              <span id="lock-status-text" class="block text-[10px] font-extrabold text-emerald-600 uppercase">OPERATIONAL</span>
+            </div>
+          </div>
+
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggle-vehicle-lock" onchange="toggleVehicleLock(this.checked)" class="sr-only peer">
+            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
           <button onclick="triggerHorn()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 text-slate-700 text-[11px] font-bold gap-1">
             <i class="fa-solid fa-bullhorn text-amber-600"></i> Horn
           </button>
@@ -183,16 +202,49 @@
       socket.emit('REGISTER_DEVICE', { unit_id: 'DISPATCH_MAIN', role: 'DISPATCHER' });
     });
 
-    // 1. INCOMING CHAT HANDLER
+    // 1. ENGINE IMMOBILIZER SWITCH CONTROL
+    function toggleVehicleLock(shouldLock) {
+      const actionCmd = shouldLock ? 'DISABLE_VEHICLE' : 'ENABLE_VEHICLE';
+      socket.emit('DISPATCH_COMMAND', {
+        target_unit: 'ALL',
+        action: actionCmd
+      });
+      updateLockStateUI(shouldLock);
+    }
+
+    function updateLockStateUI(isLocked) {
+      const lockToggle = document.getElementById('toggle-vehicle-lock');
+      const statusText = document.getElementById('lock-status-text');
+      const iconBg = document.getElementById('lock-icon-bg');
+      const icon = document.getElementById('lock-icon');
+
+      lockToggle.checked = isLocked;
+
+      if (isLocked) {
+        statusText.innerText = "IMMOBILIZED";
+        statusText.className = "block text-[10px] font-extrabold text-red-600 uppercase";
+        iconBg.className = "flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-700";
+        icon.className = "fa-solid fa-lock text-xs";
+      } else {
+        statusText.innerText = "OPERATIONAL";
+        statusText.className = "block text-[10px] font-extrabold text-emerald-600 uppercase";
+        iconBg.className = "flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700";
+        icon.className = "fa-solid fa-lock-open text-xs";
+      }
+    }
+
+    // 2. INCOMING CHAT HANDLER
     socket.on('CHAT_MESSAGE', (data) => {
-      appendChatMessage(data.sender || 'Mobile Unit', data.text);
+      appendChatMessage(data.sender || 'Mobile Unit', data.text || data.message);
     });
 
-    // 2. INCOMING OVERRIDE EXECUTIONS (Handles WebAudio & FX triggered locally or from server)
+    // 3. INCOMING OVERRIDE EXECUTIONS
     socket.on('EXECUTE_OVERRIDE', (cmd) => {
       if (cmd.action === 'HORN') playHornSound();
       if (cmd.action === 'TOGGLE_SIREN') handleSirenUI(cmd.state);
       if (cmd.action === 'TOGGLE_LIGHTS') handleLightsUI(cmd.state);
+      if (cmd.action === 'DISABLE_VEHICLE' || cmd.action === 'LOCK_VEHICLE') updateLockStateUI(true);
+      if (cmd.action === 'ENABLE_VEHICLE' || cmd.action === 'UNLOCK_VEHICLE') updateLockStateUI(false);
     });
 
     // Web Audio Synthesizer Controls
@@ -202,7 +254,6 @@
     }
 
     function triggerHorn() {
-      // Send to server targeted to ALL or specific mobile unit
       socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'HORN' });
     }
 
@@ -302,7 +353,7 @@
       const input = document.getElementById('chat-input');
       if (input.value.trim() !== '') {
         socket.emit('CHAT_MESSAGE', {
-          target_unit: 'ALL', // Targets 'ALL' so mobile receives it regardless of room registration
+          target_unit: 'ALL',
           sender: 'Command Center',
           text: input.value
         });
@@ -315,6 +366,11 @@
       document.getElementById('rider-speed').innerText = Number(data.speed || 0).toFixed(1);
       document.getElementById('rider-battery').innerText = Math.round(data.battery || 0);
       document.getElementById('rider-coords').innerText = `${Number(data.lat).toFixed(4)}, ${Number(data.lng).toFixed(4)}`;
+
+      // Sync vehicle lock state from mobile telemetry
+      if (typeof data.is_locked !== 'undefined') {
+        updateLockStateUI(data.is_locked);
+      }
 
       if (!markers[data.unit_id]) {
         markers[data.unit_id] = L.marker([data.lat, data.lng]).addTo(map);
