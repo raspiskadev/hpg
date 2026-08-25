@@ -188,15 +188,36 @@
           </label>
         </div>
 
-        <div class="grid grid-cols-3 gap-2">
-          <button onclick="triggerHorn()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 text-slate-700 text-[11px] font-bold gap-1 transition">
-            <i class="fa-solid fa-bullhorn text-amber-600"></i> Horn
+        <!-- Siren, Lights, Horn Controls -->
+        <div class="space-y-2">
+          <!-- Horn Control Button -->
+          <button onclick="triggerHorn()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition">
+            <i class="fa-solid fa-bullhorn text-amber-600"></i> Sound Horn (0.5s)
           </button>
-          <button id="btn-siren" onclick="toggleSiren()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-red-500 hover:bg-red-50 text-slate-700 text-[11px] font-bold gap-1 transition">
-            <i class="fa-solid fa-triangle-exclamation text-red-600"></i> Siren
-          </button>
-          <button id="btn-lights" onclick="toggleLights()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-[11px] font-bold gap-1 transition">
-            <i class="fa-solid fa-lightbulb text-blue-600"></i> Lights
+
+          <!-- Siren ON / OFF Group -->
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btn-siren-on" onclick="setSirenState(true)" class="p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-red-500 hover:bg-red-50 text-red-700 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-triangle-exclamation"></i> Siren ON
+            </button>
+            <button id="btn-siren-off" onclick="setSirenState(false)" class="p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-400 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-volume-xmark"></i> Siren OFF
+            </button>
+          </div>
+
+          <!-- Strobe Lights ON / OFF Group -->
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btn-lights-on" onclick="setLightsState(true)" class="p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-blue-700 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-lightbulb"></i> Lights ON
+            </button>
+            <button id="btn-lights-off" onclick="setLightsState(false)" class="p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-400 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-power-off"></i> Lights OFF
+            </button>
+          </div>
+
+          <!-- All Clear / Master Stop Button -->
+          <button onclick="clearAllOverrides()" class="w-full py-2 bg-slate-900 hover:bg-black text-white text-xs font-extrabold uppercase tracking-wider rounded-lg flex items-center justify-center gap-2 shadow transition">
+            <i class="fa-solid fa-shield-cat text-emerald-400"></i> All Clear (Stop Siren & Lights)
           </button>
         </div>
       </div>
@@ -453,8 +474,12 @@
     // 3. INCOMING OVERRIDE EXECUTIONS
     socket.on('EXECUTE_OVERRIDE', (cmd) => {
       if (cmd.action === 'HORN') playHornSound();
-      if (cmd.action === 'TOGGLE_SIREN') handleSirenUI(cmd.state);
-      if (cmd.action === 'TOGGLE_LIGHTS') handleLightsUI(cmd.state);
+      if (cmd.action === 'TOGGLE_SIREN' || cmd.action === 'SIREN') handleSirenUI(cmd.state === true || cmd.extra === 'ON' || cmd.extra === 'TRUE');
+      if (cmd.action === 'TOGGLE_LIGHTS' || cmd.action === 'LIGHTS') handleLightsUI(cmd.state === true || cmd.extra === 'ON' || cmd.extra === 'TRUE');
+      if (cmd.action === 'CLEAR_ALL' || cmd.action === 'STOP_ALL') {
+        handleSirenUI(false);
+        handleLightsUI(false);
+      }
       if (cmd.action === 'DISABLE_VEHICLE' || cmd.action === 'LOCK_VEHICLE') updateLockStateUI(true);
       if (cmd.action === 'ENABLE_VEHICLE' || cmd.action === 'UNLOCK_VEHICLE') updateLockStateUI(false);
     });
@@ -483,59 +508,99 @@
       osc.stop(ctx.currentTime + 0.6);
     }
 
-    function toggleSiren() {
-      sirenActive = !sirenActive;
-      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'TOGGLE_SIREN', state: sirenActive });
+    // --- DEDICATED SIREN & LIGHTS DISPATCH FUNCTIONS ---
+
+    function setSirenState(enable) {
+      sirenActive = enable;
+      socket.emit('DISPATCH_COMMAND', {
+        target_unit: 'ALL',
+        action: 'TOGGLE_SIREN',
+        extra: enable ? 'ON' : 'OFF',
+        state: enable
+      });
+      handleSirenUI(enable);
+    }
+
+    function setLightsState(enable) {
+      lightsActive = enable;
+      socket.emit('DISPATCH_COMMAND', {
+        target_unit: 'ALL',
+        action: 'TOGGLE_LIGHTS',
+        extra: enable ? 'ON' : 'OFF',
+        state: enable
+      });
+      handleLightsUI(enable);
+    }
+
+    function clearAllOverrides() {
+      sirenActive = false;
+      lightsActive = false;
+      socket.emit('DISPATCH_COMMAND', {
+        target_unit: 'ALL',
+        action: 'CLEAR_ALL',
+        extra: 'OFF',
+        state: false
+      });
+      handleSirenUI(false);
+      handleLightsUI(false);
     }
 
     function handleSirenUI(active) {
       sirenActive = active;
       const ctx = getAudioContext();
-      const btn = document.getElementById('btn-siren');
+      const btnOn = document.getElementById('btn-siren-on');
+      const btnOff = document.getElementById('btn-siren-off');
 
       if (sirenActive) {
-        btn.classList.add('bg-red-100', 'border-red-500');
-        sirenOscillator = ctx.createOscillator();
-        const gain = ctx.createGain();
-        sirenOscillator.type = 'sine';
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        
-        sirenOscillator.frequency.setValueAtTime(600, ctx.currentTime);
-        const now = ctx.currentTime;
-        for (let i = 0; i < 100; i++) {
-          sirenOscillator.frequency.linearRampToValueAtTime(900, now + i * 0.8 + 0.4);
-          sirenOscillator.frequency.linearRampToValueAtTime(600, now + i * 0.8 + 0.8);
+        btnOn.classList.add('bg-red-600', 'text-white', 'border-red-600');
+        btnOn.classList.remove('bg-slate-50', 'text-red-700');
+        btnOff.classList.remove('bg-slate-300');
+
+        if (!sirenOscillator) {
+          sirenOscillator = ctx.createOscillator();
+          const gain = ctx.createGain();
+          sirenOscillator.type = 'sine';
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          
+          sirenOscillator.frequency.setValueAtTime(600, ctx.currentTime);
+          const now = ctx.currentTime;
+          for (let i = 0; i < 100; i++) {
+            sirenOscillator.frequency.linearRampToValueAtTime(900, now + i * 0.8 + 0.4);
+            sirenOscillator.frequency.linearRampToValueAtTime(600, now + i * 0.8 + 0.8);
+          }
+          sirenOscillator.connect(gain);
+          gain.connect(ctx.destination);
+          sirenOscillator.start();
         }
-        sirenOscillator.connect(gain);
-        gain.connect(ctx.destination);
-        sirenOscillator.start();
       } else {
-        btn.classList.remove('bg-red-100', 'border-red-500');
+        btnOn.classList.remove('bg-red-600', 'text-white', 'border-red-600');
+        btnOn.classList.add('bg-slate-50', 'text-red-700');
+
         if (sirenOscillator) {
-          sirenOscillator.stop();
-          sirenOscillator.disconnect();
+          try {
+            sirenOscillator.stop();
+            sirenOscillator.disconnect();
+          } catch(e) {}
+          sirenOscillator = null;
         }
       }
-    }
-
-    function toggleLights() {
-      lightsActive = !lightsActive;
-      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'TOGGLE_LIGHTS', state: lightsActive });
     }
 
     function handleLightsUI(active) {
       lightsActive = active;
       const overlay = document.getElementById('strobe-overlay');
-      const btn = document.getElementById('btn-lights');
+      const btnOn = document.getElementById('btn-lights-on');
 
       if (lightsActive) {
         overlay.classList.remove('hidden');
         overlay.classList.add('active-strobe');
-        btn.classList.add('bg-blue-100', 'border-blue-500');
+        btnOn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+        btnOn.classList.remove('bg-slate-50', 'text-blue-700');
       } else {
         overlay.classList.add('hidden');
         overlay.classList.remove('active-strobe');
-        btn.classList.remove('bg-blue-100', 'border-blue-500');
+        btnOn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+        btnOn.classList.add('bg-slate-50', 'text-blue-700');
       }
     }
 
