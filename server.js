@@ -144,17 +144,13 @@ io.on('connection', (socket) => {
   });
 
   // 5. CHAT & CAD INCIDENT DISPATCH MESSAGING
-  socket.on('CHAT_MESSAGE', (data) => {
-    const target = data.target_unit || data.recipient || 'HPG_GROUP_ALL';
-    console.log(`[CHAT] ${data.sender} -> ${target}: ${data.text}`);
-
-    if (target === 'HPG_GROUP_ALL' || target === 'ALL') {
-      io.emit('CHAT_MESSAGE', data);
-    } else {
-      io.to(target).emit('CHAT_MESSAGE', data);
-      socket.emit('CHAT_MESSAGE', data); // Local echo
-    }
-  });
+// 5. CHAT & CAD INCIDENT DISPATCH MESSAGING
+socket.on('CHAT_MESSAGE', (data) => {
+  console.log(`[CHAT] ${data.sender} -> ${data.target_unit || 'ALL'}: ${data.text || data.message}`);
+  
+  // Broadcast to everyone (Web Console + Android Apps)
+  io.emit('CHAT_MESSAGE', data);
+});
 
   socket.on('TACTICAL_MESSAGE', (data) => {
     const target = data.recipient || data.target_unit || 'HPG_GROUP_ALL';

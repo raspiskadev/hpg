@@ -5,45 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PNP-HPG Light Command Console</title>
 
-  <!-- Tailwind CSS & FontAwesome Icons -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <!-- Leaflet CSS for Map Rendering -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
-    /* Custom Scrollbar for Light Theme */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #f1f5f9; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    
-    /* Map Marker Pulse Animation */
-    .pulse-marker-hpg {
-      box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.7);
-      border-radius: 50%;
-      animation: pulse-blue 2s infinite;
+
+    /* Strobe Lights Simulation Layer */
+    @keyframes police-strobe {
+      0%, 49% { background-color: rgba(239, 68, 68, 0.25); }
+      50%, 100% { background-color: rgba(59, 130, 246, 0.25); }
     }
-    @keyframes pulse-blue {
-      0% { box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(29, 78, 216, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(29, 78, 216, 0); }
+    .active-strobe {
+      animation: police-strobe 0.3s infinite;
+      pointer-events: none;
     }
   </style>
 </head>
 <body class="bg-slate-100 font-sans text-slate-800 antialiased h-screen flex flex-col overflow-hidden">
 
-<!-- TOP NAVIGATION BAR -->
+  <!-- EMERGENCY LIGHTS OVERLAY LAYER -->
+  <div id="strobe-overlay" class="fixed inset-0 z-40 hidden"></div>
+
+  <!-- TOP NAVIGATION BAR -->
   <header class="sticky top-0 z-50 flex h-16 w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
     <div class="flex items-center gap-3">
-      <!-- Transparent logo display -->
-      <img 
-        src="https://upload.wikimedia.org/wikipedia/commons/c/c3/Highway_Patrol_Group.png" 
-        alt="PNP HPG Seal" 
-        referrerpolicy="no-referrer"
-        class="h-10 w-auto object-contain filter drop-shadow-sm shrink-0"
-      />
+      <img src="https://upload.wikimedia.org/wikipedia/commons/c/c3/Highway_Patrol_Group.png" alt="PNP HPG Seal" referrerpolicy="no-referrer" class="h-10 w-auto object-contain shrink-0" />
       <div>
         <span class="text-base font-black tracking-wider text-slate-900 block leading-none">PNP HIGHWAY PATROL GROUP</span>
         <span class="text-[10px] text-blue-700 font-bold tracking-widest uppercase">Tactical Dispatch & Intercept Command</span>
@@ -64,119 +54,86 @@
   <!-- MAIN DASHBOARD LAYOUT -->
   <div class="flex flex-1 w-full overflow-hidden">
 
-    <!-- LEFT SIDEBAR: ACTION BUTTONS, TELEMETRY & COMMS -->
+    <!-- LEFT SIDEBAR -->
     <aside class="w-96 border-r border-slate-200 bg-white flex flex-col h-full overflow-y-auto shrink-0 shadow-sm z-10 p-4 space-y-4">
       
       <!-- PATROL OFFICER PROFILE CARD -->
       <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 shadow-inner">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-900 font-black text-amber-400 text-xs shadow tracking-wider">
+            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-900 font-black text-amber-400 text-xs shadow">
               HPG
             </div>
             <div>
               <span id="rider-unit-id" class="font-mono text-[10px] font-bold text-blue-900 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded">HPG-PATROL-01</span>
-              <h2 id="rider-name" class="font-bold text-slate-900 text-sm mt-0.5">Patrol Unit Alpha</h2>
+              <h2 class="font-bold text-slate-900 text-sm mt-0.5">Patrol Unit Alpha</h2>
             </div>
           </div>
-          <span id="rider-status" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            PATROLLING
-          </span>
+          <span id="rider-status" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">PATROLLING</span>
         </div>
 
-        <!-- Telemetry Details Grid -->
         <div class="grid grid-cols-2 gap-2 mt-3">
           <div class="bg-white p-2.5 rounded-lg border border-slate-200">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Patrol Speed</span>
+            <span class="text-[10px] font-bold uppercase text-slate-400 block">Patrol Speed</span>
             <div class="flex items-baseline gap-1">
               <span id="rider-speed" class="text-xl font-black font-mono text-blue-900">0.0</span>
-              <span class="text-xs font-medium text-slate-500">km/h</span>
+              <span class="text-xs text-slate-500">km/h</span>
             </div>
           </div>
           <div class="bg-white p-2.5 rounded-lg border border-slate-200">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Battery Power</span>
+            <span class="text-[10px] font-bold uppercase text-slate-400 block">Battery Power</span>
             <div class="flex items-baseline gap-1">
               <span id="rider-battery" class="text-xl font-black font-mono text-emerald-600">0</span>
-              <span class="text-xs font-medium text-slate-500">%</span>
+              <span class="text-xs text-slate-500">%</span>
             </div>
           </div>
         </div>
 
-        <div class="mt-2 bg-white p-2.5 rounded-lg border border-slate-200 text-xs font-mono text-slate-600 flex justify-between items-center">
+        <div class="mt-2 bg-white p-2.5 rounded-lg border border-slate-200 text-xs font-mono flex justify-between items-center">
           <div>
-            <span class="text-[9px] text-slate-400 font-sans block uppercase font-bold">Coordinates</span>
+            <span class="text-[9px] text-slate-400 font-sans block font-bold uppercase">Coordinates</span>
             <span id="rider-coords" class="font-bold text-slate-800">14.5995, 120.9842</span>
           </div>
-          <button id="btn-recenter" class="text-blue-700 hover:text-blue-900 text-[11px] font-sans font-bold underline transition">Auto Center</button>
         </div>
       </div>
 
-      <!-- COMMUNICATIONS ACTIONS -->
+      <!-- CAMERA FEEDS CONTROL -->
       <div>
-        <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Comms & Tasking</span>
+        <span class="block text-[11px] font-bold uppercase text-slate-400 mb-2">Remote Camera Feeds</span>
         <div class="grid grid-cols-2 gap-2">
-          <button class="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-slate-700 text-xs font-bold">
-            <i class="fa-solid fa-video text-blue-700"></i> Video Call
+          <button onclick="triggerCamera('FRONT')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-xs font-bold">
+            <i class="fa-solid fa-camera text-blue-700"></i> Front Cam
           </button>
-          <button class="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-slate-700 text-xs font-bold">
-            <i class="fa-solid fa-phone text-blue-700"></i> Voice Call
-          </button>
-          <button id="btn-ptt" class="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-slate-700 text-xs font-bold">
-            <i class="fa-solid fa-walkie-talkie text-blue-700"></i> Push to Talk
-          </button>
-          <button class="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-slate-700 text-xs font-bold">
-            <i class="fa-solid fa-clipboard-check text-slate-600"></i> Assign Task
+          <button onclick="triggerCamera('BACK')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-xs font-bold">
+            <i class="fa-solid fa-video text-blue-700"></i> Rear Cam
           </button>
         </div>
       </div>
 
-      <!-- REMOTE VEHICLE TELEMATICS OVERRIDES -->
+      <!-- REMOTE AUDIO / LIGHT TELEMATICS OVERRIDES -->
       <div>
-        <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Remote Vehicle Controls</span>
+        <span class="block text-[11px] font-bold uppercase text-slate-400 mb-2">Vehicle Overrides & Sound</span>
         <div class="grid grid-cols-3 gap-2 mb-2">
-          <button onclick="triggerAction('HORN')" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition text-slate-700 text-[11px] font-bold gap-1">
+          <button onclick="triggerHorn()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 text-slate-700 text-[11px] font-bold gap-1">
             <i class="fa-solid fa-bullhorn text-amber-600"></i> Horn
           </button>
-          <button onclick="triggerAction('SIREN')" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition text-slate-700 text-[11px] font-bold gap-1">
-            <i class="fa-solid fa-triangle-exclamation text-amber-600"></i> Siren
+          <button id="btn-siren" onclick="toggleSiren()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-red-500 hover:bg-red-50 text-slate-700 text-[11px] font-bold gap-1">
+            <i class="fa-solid fa-triangle-exclamation text-red-600"></i> Siren
           </button>
-          <button onclick="triggerAction('LIGHTS')" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 transition text-slate-700 text-[11px] font-bold gap-1">
-            <i class="fa-solid fa-lightbulb text-amber-600"></i> Lights
+          <button id="btn-lights" onclick="toggleLights()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-[11px] font-bold gap-1">
+            <i class="fa-solid fa-lightbulb text-blue-600"></i> Lights
           </button>
         </div>
-
-        <!-- Immobilizer Relay Override -->
-        <div class="p-3 bg-red-50 rounded-xl border border-red-200 flex items-center justify-between">
-          <div>
-            <span id="lock-status-label" class="block text-xs font-bold text-red-800">Remote Immobilize</span>
-            <span class="block text-[10px] text-red-600">Engine Relay Switch</span>
-          </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="toggle-vehicle-lock" class="sr-only peer" checked>
-            <div class="w-11 h-6 bg-red-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-          </label>
-        </div>
-      </div>
-
-      <!-- DISPATCH SCREEN ALERT INPUT -->
-      <div class="space-y-2">
-        <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Dispatch Screen Alert (CAD)</span>
-        <textarea id="app-push-message-input" rows="2" placeholder="Type instruction to display on unit app..." class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 transition text-slate-800 placeholder-slate-400"></textarea>
-        <button id="btn-send-push-alert" class="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs py-2 rounded-lg transition flex items-center justify-center gap-2">
-          <i class="fa-solid fa-paper-plane"></i> Send Message Alert
-        </button>
       </div>
 
     </aside>
 
-    <!-- RIGHT MAIN CONTENT: MAP VIEW & COMMS LOG -->
+    <!-- MAIN MAP AND CHAT LOG -->
     <main class="flex-1 flex flex-col h-full bg-slate-100 relative">
-      
-      <!-- LEAFLET LIVE TRACKING MAP CONTAINER -->
       <div id="map" class="flex-1 w-full h-full z-0"></div>
 
       <!-- BOTTOM DISPATCH COMMS PANEL -->
-      <div class="h-48 bg-white border-t border-slate-200 flex p-3 z-10 shrink-0 shadow-sm">
+      <div class="h-48 bg-white border-t border-slate-200 flex p-3 z-10 shrink-0">
         <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl flex flex-col overflow-hidden">
           <div class="px-3 py-1.5 border-b border-slate-200 bg-white flex items-center justify-between">
             <span class="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-2">
@@ -184,146 +141,151 @@
             </span>
           </div>
 
-          <div id="chat-messages" class="flex-1 p-2.5 overflow-y-auto space-y-1.5 text-xs font-sans">
-            <div class="p-2 rounded-lg bg-white border border-slate-200 text-slate-500">
-              <span class="font-bold text-blue-900">System:</span> Dispatch link ready. Tracking active.
-            </div>
-          </div>
+          <div id="chat-messages" class="flex-1 p-2.5 overflow-y-auto space-y-1.5 text-xs font-sans"></div>
 
           <div class="p-2 border-t border-slate-200 bg-white flex gap-2">
-            <input type="text" id="chat-input" placeholder="Type tactical message..." class="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-blue-500 transition placeholder-slate-400" />
-            <button id="btn-send-chat" class="bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs px-4 py-1.5 rounded-lg transition">
-              Send
-            </button>
+            <input type="text" id="chat-input" placeholder="Type message to unit..." class="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-blue-500" />
+            <button id="btn-send-chat" class="bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs px-4 py-1.5 rounded-lg transition">Send</button>
           </div>
         </div>
       </div>
     </main>
-
   </div>
 
-  <!-- EXTERNAL SCRIPTS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
-  <!-- CONTROLLER SCRIPT -->
   <script>
-    const FIRST_RIDER_UNIT_ID = "HPG-PATROL-01";
+    const TARGET_UNIT = "HPG-PATROL-01"; // Default target mobile unit
+    let sirenActive = false;
+    let lightsActive = false;
+    let audioCtx = null;
+    let sirenOscillator = null;
 
-    // Operational live clock
+    // Clock
     setInterval(() => {
-      const now = new Date();
-      document.getElementById('live-clock').innerText = now.toTimeString().split(' ')[0] + ' PST';
+      document.getElementById('live-clock').innerText = new Date().toTimeString().split(' ')[0] + ' PST';
     }, 1000);
 
-    // Initialize Map with High-Contrast Light CartoDB Tiles (Fixes OSM block)
+    // Leaflet Map Initialization
     const map = L.map('map', { zoomControl: false }).setView([14.5995, 120.9842], 13);
-    
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 19
-    }).addTo(map);
-
-    L.control.zoom({ position: 'topright' }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
 
     const markers = {};
-    const statusBadge = document.getElementById('status-badge');
-
-    function createHPGIcon() {
-      return L.divIcon({
-        className: 'custom-hpg-icon',
-        html: `
-          <div class="relative flex items-center justify-center">
-            <div class="h-10 w-10 rounded-full bg-blue-900 border-2 border-amber-400 shadow-lg flex items-center justify-center text-amber-400 font-bold text-xs pulse-marker-hpg">
-              <i class="fa-solid fa-motorcycle text-sm"></i>
-            </div>
-          </div>
-        `,
-        iconSize: [40, 40],
-        iconAnchor: [20, 20]
-      });
-    }
-
-    const socket = io(window.location.origin, {
-      query: { role: "DISPATCHER", unit_id: "DISPATCH_MAIN" }
-    });
+    const socket = io(window.location.origin, { query: { role: "DISPATCHER", unit_id: "DISPATCH_MAIN" } });
 
     socket.on('connect', () => {
-      statusBadge.className = "flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200";
-      statusBadge.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> ONLINE`;
+      const badge = document.getElementById('status-badge');
+      badge.className = "flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200";
+      badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> ONLINE`;
+      
+      // Register device with server
+      socket.emit('REGISTER_DEVICE', { unit_id: 'DISPATCH_MAIN', role: 'DISPATCHER' });
     });
 
-    socket.on('disconnect', () => {
-      statusBadge.className = "flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-800 border border-red-200";
-      statusBadge.innerHTML = `<span class="h-2 w-2 rounded-full bg-red-500"></span> OFFLINE`;
+    // 1. INCOMING CHAT HANDLER
+    socket.on('CHAT_MESSAGE', (data) => {
+      appendChatMessage(data.sender || 'Mobile Unit', data.text);
     });
 
-    socket.on('TELEMETRY_UPDATE', (data) => {
-      const unitId = data.unit_id || FIRST_RIDER_UNIT_ID;
-      const lat = Number(data.lat || data.latitude);
-      const lng = Number(data.lng || data.longitude);
-      const speed = Number(data.speed || 0).toFixed(1);
-      const battery = Math.round(Number(data.battery || 0));
-      const status = data.status || 'PATROLLING';
+    // 2. INCOMING OVERRIDE EXECUTIONS (Handles WebAudio & FX triggered locally or from server)
+    socket.on('EXECUTE_OVERRIDE', (cmd) => {
+      if (cmd.action === 'HORN') playHornSound();
+      if (cmd.action === 'TOGGLE_SIREN') handleSirenUI(cmd.state);
+      if (cmd.action === 'TOGGLE_LIGHTS') handleLightsUI(cmd.state);
+    });
 
-      if (!lat || !lng || (lat === 0 && lng === 0)) return;
+    // Web Audio Synthesizer Controls
+    function getAudioContext() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    }
 
-      document.getElementById('rider-speed').innerText = speed;
-      document.getElementById('rider-battery').innerText = battery;
-      document.getElementById('rider-coords').innerText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-      document.getElementById('rider-status').innerText = status;
+    function triggerHorn() {
+      // Send to server targeted to ALL or specific mobile unit
+      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'HORN' });
+    }
 
-      if (!markers[unitId]) {
-        markers[unitId] = L.marker([lat, lng], { icon: createHPGIcon() }).addTo(map);
-        map.setView([lat, lng], 15);
+    function playHornSound() {
+      const ctx = getAudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(420, ctx.currentTime);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.6);
+    }
+
+    function toggleSiren() {
+      sirenActive = !sirenActive;
+      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'TOGGLE_SIREN', state: sirenActive });
+    }
+
+    function handleSirenUI(active) {
+      sirenActive = active;
+      const ctx = getAudioContext();
+      const btn = document.getElementById('btn-siren');
+
+      if (sirenActive) {
+        btn.classList.add('bg-red-100', 'border-red-500');
+        sirenOscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        sirenOscillator.type = 'sine';
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        
+        sirenOscillator.frequency.setValueAtTime(600, ctx.currentTime);
+        const now = ctx.currentTime;
+        for (let i = 0; i < 100; i++) {
+          sirenOscillator.frequency.linearRampToValueAtTime(900, now + i * 0.8 + 0.4);
+          sirenOscillator.frequency.linearRampToValueAtTime(600, now + i * 0.8 + 0.8);
+        }
+        sirenOscillator.connect(gain);
+        gain.connect(ctx.destination);
+        sirenOscillator.start();
       } else {
-        markers[unitId].setLatLng([lat, lng]);
+        btn.classList.remove('bg-red-100', 'border-red-500');
+        if (sirenOscillator) {
+          sirenOscillator.stop();
+          sirenOscillator.disconnect();
+        }
       }
-    });
+    }
 
-    // Auto Center Functionality
-    document.getElementById('btn-recenter').addEventListener('click', () => {
-      if (markers[FIRST_RIDER_UNIT_ID]) {
-        map.setView(markers[FIRST_RIDER_UNIT_ID].getLatLng(), 16);
+    function toggleLights() {
+      lightsActive = !lightsActive;
+      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'TOGGLE_LIGHTS', state: lightsActive });
+    }
+
+    function handleLightsUI(active) {
+      lightsActive = active;
+      const overlay = document.getElementById('strobe-overlay');
+      const btn = document.getElementById('btn-lights');
+
+      if (lightsActive) {
+        overlay.classList.remove('hidden');
+        overlay.classList.add('active-strobe');
+        btn.classList.add('bg-blue-100', 'border-blue-500');
+      } else {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('active-strobe');
+        btn.classList.remove('bg-blue-100', 'border-blue-500');
       }
-    });
+    }
 
-    // Action Trigger helper
-    function triggerAction(actionName) {
-      appendChatMessage("Command Center", `Triggered Remote Action: ${actionName}`);
+    function triggerCamera(facing) {
+      appendChatMessage("Command Center", `Sent CAMERA_ACTIVATE (${facing}) to mobile...`);
       socket.emit('DISPATCH_COMMAND', {
-        target_unit: FIRST_RIDER_UNIT_ID,
-        action: actionName,
-        timestamp: new Date()
+        target_unit: 'ALL',
+        action: 'ACTIVATE_CAMERA',
+        facing: facing
       });
     }
 
-    const lockToggle = document.getElementById('toggle-vehicle-lock');
-    lockToggle.addEventListener('change', (e) => {
-      const isEnabled = e.target.checked;
-      socket.emit('DISPATCH_COMMAND', {
-        target_unit: FIRST_RIDER_UNIT_ID,
-        action: isEnabled ? 'ENABLE_VEHICLE' : 'DISABLE_VEHICLE',
-        timestamp: new Date()
-      });
-      appendChatMessage("Command Center", `Immobilizer Relay: ${isEnabled ? 'ENGINE ENABLED' : 'ENGINE IMMOBILIZED'}`);
-    });
-
-    document.getElementById('btn-send-push-alert').addEventListener('click', () => {
-      const input = document.getElementById('app-push-message-input');
-      if (input.value.trim() !== '') {
-        socket.emit('DISPATCH_COMMAND', {
-          target_unit: FIRST_RIDER_UNIT_ID,
-          action: 'DISPLAY_SCREEN_ALERT',
-          alert_message: input.value,
-          timestamp: new Date()
-        });
-        appendChatMessage("Command Center", `Screen Alert Sent: "${input.value}"`);
-        input.value = '';
-      }
-    });
-
+    // Chat Broadcasting
     function appendChatMessage(sender, text) {
       const chatBox = document.getElementById('chat-messages');
       const msgDiv = document.createElement('div');
@@ -333,16 +295,31 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    document.getElementById('btn-send-chat').addEventListener('click', () => {
+    document.getElementById('btn-send-chat').addEventListener('click', sendChatMessage);
+    document.getElementById('chat-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChatMessage(); });
+
+    function sendChatMessage() {
       const input = document.getElementById('chat-input');
       if (input.value.trim() !== '') {
         socket.emit('CHAT_MESSAGE', {
-          target_unit: FIRST_RIDER_UNIT_ID,
+          target_unit: 'ALL', // Targets 'ALL' so mobile receives it regardless of room registration
           sender: 'Command Center',
           text: input.value
         });
-        appendChatMessage('Command Center', input.value);
         input.value = '';
+      }
+    }
+
+    // Live Telemetry Receiver
+    socket.on('TELEMETRY_UPDATE', (data) => {
+      document.getElementById('rider-speed').innerText = Number(data.speed || 0).toFixed(1);
+      document.getElementById('rider-battery').innerText = Math.round(data.battery || 0);
+      document.getElementById('rider-coords').innerText = `${Number(data.lat).toFixed(4)}, ${Number(data.lng).toFixed(4)}`;
+
+      if (!markers[data.unit_id]) {
+        markers[data.unit_id] = L.marker([data.lat, data.lng]).addTo(map);
+      } else {
+        markers[data.unit_id].setLatLng([data.lat, data.lng]);
       }
     });
   </script>
