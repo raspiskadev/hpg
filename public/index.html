@@ -23,6 +23,13 @@
       animation: police-strobe 0.3s infinite;
       pointer-events: none;
     }
+
+    /* Active PTT Transmit Pulse Effect */
+    .ptt-active {
+      background-color: #ef4444 !important;
+      color: #ffffff !important;
+      animation: pulse 1s infinite;
+    }
   </style>
 </head>
 <body class="bg-slate-100 font-sans text-slate-800 antialiased h-screen flex flex-col overflow-hidden">
@@ -30,8 +37,38 @@
   <!-- EMERGENCY LIGHTS OVERLAY LAYER -->
   <div id="strobe-overlay" class="fixed inset-0 z-40 hidden"></div>
 
+  <!-- WEBRTC VOICE & VIDEO CALL OVERLAY MODAL -->
+  <div id="webrtc-modal" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col">
+      <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <span class="h-3 w-3 rounded-full bg-emerald-500 animate-ping"></span>
+          <h3 id="call-modal-title" class="font-bold text-sm uppercase tracking-wider">Live Channel Connected</h3>
+        </div>
+        <button onclick="endCall()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      
+      <!-- Video Streams Container -->
+      <div class="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
+        <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
+        <video id="local-video" autoplay playsinline muted class="absolute bottom-4 right-4 w-32 aspect-video bg-slate-800 rounded-lg border-2 border-white object-cover shadow-lg"></video>
+        <audio id="remote-audio" autoplay></audio>
+      </div>
+
+      <!-- Call Action Controls -->
+      <div class="p-4 bg-slate-50 flex items-center justify-center gap-4">
+        <button id="btn-toggle-mic" onclick="toggleLocalMic()" class="h-12 w-12 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center hover:bg-slate-300 transition">
+          <i id="mic-icon" class="fa-solid fa-microphone"></i>
+        </button>
+        <button onclick="endCall()" class="px-6 py-3 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold flex items-center gap-2 text-sm shadow transition">
+          <i class="fa-solid fa-phone-slash"></i> End Call
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOP NAVIGATION BAR -->
-  <header class="sticky top-0 z-50 flex h-16 w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
+  <header class="sticky top-0 z-30 flex h-16 w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
     <div class="flex items-center gap-3">
       <img src="https://upload.wikimedia.org/wikipedia/commons/c/c3/Highway_Patrol_Group.png" alt="PNP HPG Seal" referrerpolicy="no-referrer" class="h-10 w-auto object-contain shrink-0" />
       <div>
@@ -97,14 +134,33 @@
         </div>
       </div>
 
+      <!-- TACTICAL VOICE, VIDEO & PTT COMMS -->
+      <div>
+        <span class="block text-[11px] font-bold uppercase text-slate-400 mb-2">Tactical Comms Center</span>
+        
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <button onclick="startCall('VOICE')" class="flex items-center justify-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg hover:border-emerald-500 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition">
+            <i class="fa-solid fa-phone text-emerald-600"></i> Voice Call
+          </button>
+          <button onclick="startCall('VIDEO')" class="flex items-center justify-center gap-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg hover:border-blue-500 hover:bg-blue-100 text-blue-800 text-xs font-bold transition">
+            <i class="fa-solid fa-video text-blue-600"></i> Video Call
+          </button>
+        </div>
+
+        <!-- Push-To-Talk Button -->
+        <button id="btn-ptt" onmousedown="startPTT()" onmouseup="stopPTT()" onmouseleave="stopPTT()" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow transition select-none cursor-pointer">
+          <i class="fa-solid fa-walkie-talkie text-amber-400"></i> Push-To-Talk (Hold)
+        </button>
+      </div>
+
       <!-- CAMERA FEEDS CONTROL -->
       <div>
         <span class="block text-[11px] font-bold uppercase text-slate-400 mb-2">Remote Camera Feeds</span>
         <div class="grid grid-cols-2 gap-2">
-          <button onclick="triggerCamera('FRONT')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-xs font-bold">
+          <button onclick="triggerCamera('FRONT')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-xs font-bold transition">
             <i class="fa-solid fa-camera text-blue-700"></i> Front Cam
           </button>
-          <button onclick="triggerCamera('BACK')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-xs font-bold">
+          <button onclick="triggerCamera('BACK')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-xs font-bold transition">
             <i class="fa-solid fa-video text-blue-700"></i> Rear Cam
           </button>
         </div>
@@ -133,13 +189,13 @@
         </div>
 
         <div class="grid grid-cols-3 gap-2">
-          <button onclick="triggerHorn()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 text-slate-700 text-[11px] font-bold gap-1">
+          <button onclick="triggerHorn()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 text-slate-700 text-[11px] font-bold gap-1 transition">
             <i class="fa-solid fa-bullhorn text-amber-600"></i> Horn
           </button>
-          <button id="btn-siren" onclick="toggleSiren()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-red-500 hover:bg-red-50 text-slate-700 text-[11px] font-bold gap-1">
+          <button id="btn-siren" onclick="toggleSiren()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-red-500 hover:bg-red-50 text-slate-700 text-[11px] font-bold gap-1 transition">
             <i class="fa-solid fa-triangle-exclamation text-red-600"></i> Siren
           </button>
-          <button id="btn-lights" onclick="toggleLights()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-[11px] font-bold gap-1">
+          <button id="btn-lights" onclick="toggleLights()" class="flex flex-col items-center p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-[11px] font-bold gap-1 transition">
             <i class="fa-solid fa-lightbulb text-blue-600"></i> Lights
           </button>
         </div>
@@ -201,6 +257,162 @@
       // Register device with server
       socket.emit('REGISTER_DEVICE', { unit_id: 'DISPATCH_MAIN', role: 'DISPATCHER' });
     });
+
+    // --- PUSH-TO-TALK (PTT) HANDLERS ---
+    let mediaRecorder = null;
+    let audioChunks = [];
+
+    async function startPTT() {
+      const btn = document.getElementById('btn-ptt');
+      btn.classList.add('ptt-active');
+      btn.innerHTML = `<i class="fa-solid fa-microphone animate-bounce"></i> TRANSMITTING...`;
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = event => {
+          if (event.data.size > 0) audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = () => {
+            socket.emit('PTT_AUDIO_TRANSMIT', {
+              target_unit: TARGET_UNIT,
+              sender: 'Command Center',
+              audio: reader.result
+            });
+          };
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+      } catch (err) {
+        console.error("PTT Microphone access error:", err);
+        stopPTT();
+      }
+    }
+
+    function stopPTT() {
+      const btn = document.getElementById('btn-ptt');
+      btn.classList.remove('ptt-active');
+      btn.innerHTML = `<i class="fa-solid fa-walkie-talkie text-amber-400"></i> Push-To-Talk (Hold)`;
+
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    }
+
+    // Receive incoming PTT audio from Mobile Unit
+    socket.on('PTT_AUDIO_RECEIVE', (data) => {
+      const audio = new Audio(data.audio);
+      audio.play();
+      appendChatMessage(data.sender || 'Mobile Unit', "🎙️ [PTT Audio Message Received]");
+    });
+
+    // --- WEBRTC VOICE & VIDEO CALL HANDLERS ---
+    let peerConnection = null;
+    let localStream = null;
+    let micMuted = false;
+    const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    async function startCall(type) {
+      document.getElementById('webrtc-modal').classList.remove('hidden');
+      document.getElementById('call-modal-title').innerText = `${type} Call - ${TARGET_UNIT}`;
+
+      peerConnection = new RTCPeerConnection(rtcConfig);
+
+      try {
+        const constraints = { audio: true, video: type === 'VIDEO' };
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        const localVidEl = document.getElementById('local-video');
+        if (type === 'VIDEO') {
+          localVidEl.classList.remove('hidden');
+          localVidEl.srcObject = localStream;
+        } else {
+          localVidEl.classList.add('hidden');
+        }
+
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+        // Handle Remote Stream Tracks
+        peerConnection.ontrack = (event) => {
+          if (type === 'VIDEO') {
+            document.getElementById('remote-video').srcObject = event.streams[0];
+          } else {
+            document.getElementById('remote-audio').srcObject = event.streams[0];
+          }
+        };
+
+        // ICE Candidate dispatching
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            socket.emit('WEBRTC_ICE_CANDIDATE', { target_unit: TARGET_UNIT, candidate: event.candidate });
+          }
+        };
+
+        // Create WebRTC Offer
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        socket.emit('WEBRTC_OFFER', { target_unit: TARGET_UNIT, offer: offer, type: type });
+
+      } catch (err) {
+        console.error("Call Setup Error:", err);
+        endCall();
+      }
+    }
+
+    socket.on('WEBRTC_ANSWER', async (data) => {
+      if (peerConnection) {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+      }
+    });
+
+    socket.on('WEBRTC_ICE_CANDIDATE', async (data) => {
+      if (peerConnection && data.candidate) {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+      }
+    });
+
+    function toggleLocalMic() {
+      if (localStream) {
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) {
+          micMuted = !micMuted;
+          audioTrack.enabled = !micMuted;
+          const micIcon = document.getElementById('mic-icon');
+          const btn = document.getElementById('btn-toggle-mic');
+          
+          if (micMuted) {
+            micIcon.className = "fa-solid fa-microphone-slash text-red-600";
+            btn.classList.add('bg-red-100');
+          } else {
+            micIcon.className = "fa-solid fa-microphone";
+            btn.classList.remove('bg-red-100');
+          }
+        }
+      }
+    }
+
+    function endCall() {
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      document.getElementById('webrtc-modal').classList.add('hidden');
+      socket.emit('WEBRTC_HANGUP', { target_unit: TARGET_UNIT });
+    }
+
+    socket.on('WEBRTC_HANGUP', () => { endCall(); });
 
     // 1. ENGINE IMMOBILIZER SWITCH CONTROL
     function toggleVehicleLock(shouldLock) {

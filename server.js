@@ -133,6 +133,18 @@ io.on('connection', (socket) => {
   });
 
   // 4. PUSH-TO-TALK (PTT) AUDIO RELAY ENGINE
+  socket.on('PTT_AUDIO_TRANSMIT', (data) => {
+    const target = data.target_unit || 'HPG_GROUP_ALL';
+    console.log(`[PTT_TRANSMIT] Audio clip from ${data.sender || socket.unit_id} -> Target: ${target}`);
+
+    if (target === 'HPG_GROUP_ALL' || target === 'ALL') {
+      socket.broadcast.emit('PTT_AUDIO_RECEIVE', data);
+    } else {
+      io.to(target).emit('PTT_AUDIO_RECEIVE', data);
+    }
+  });
+
+  // Legacy PTT stream chunk fallback
   socket.on('PTT_AUDIO_CHUNK', (data) => {
     const target = data.target_unit || 'HPG_GROUP_ALL';
 
@@ -144,13 +156,12 @@ io.on('connection', (socket) => {
   });
 
   // 5. CHAT & CAD INCIDENT DISPATCH MESSAGING
-// 5. CHAT & CAD INCIDENT DISPATCH MESSAGING
-socket.on('CHAT_MESSAGE', (data) => {
-  console.log(`[CHAT] ${data.sender} -> ${data.target_unit || 'ALL'}: ${data.text || data.message}`);
-  
-  // Broadcast to everyone (Web Console + Android Apps)
-  io.emit('CHAT_MESSAGE', data);
-});
+  socket.on('CHAT_MESSAGE', (data) => {
+    console.log(`[CHAT] ${data.sender} -> ${data.target_unit || 'ALL'}: ${data.text || data.message}`);
+    
+    // Broadcast to everyone (Web Console + Android Apps)
+    io.emit('CHAT_MESSAGE', data);
+  });
 
   socket.on('TACTICAL_MESSAGE', (data) => {
     const target = data.recipient || data.target_unit || 'HPG_GROUP_ALL';
@@ -164,7 +175,27 @@ socket.on('CHAT_MESSAGE', (data) => {
     }
   });
 
-  // 6. WEBRTC UNIFIED SIGNALING RELAY (Video / Duplex Audio Calls)
+  // 6. WEBRTC UNIFIED SIGNALING RELAY (Video / Duplex Voice Calls)
+  socket.on('WEBRTC_OFFER', (data) => {
+    console.log(`[WEBRTC OFFER] From: ${socket.unit_id || 'Console'} -> Target: ${data.target_unit} (Type: ${data.type})`);
+    io.to(data.target_unit).emit('WEBRTC_OFFER', data);
+  });
+
+  socket.on('WEBRTC_ANSWER', (data) => {
+    console.log(`[WEBRTC ANSWER] From: ${socket.unit_id || 'Mobile Unit'} -> Target: ${data.target_unit}`);
+    io.to(data.target_unit).emit('WEBRTC_ANSWER', data);
+  });
+
+  socket.on('WEBRTC_ICE_CANDIDATE', (data) => {
+    io.to(data.target_unit).emit('WEBRTC_ICE_CANDIDATE', data);
+  });
+
+  socket.on('WEBRTC_HANGUP', (data) => {
+    console.log(`[WEBRTC HANGUP] Signal sent to target: ${data.target_unit}`);
+    io.to(data.target_unit).emit('WEBRTC_HANGUP', data);
+  });
+
+  // Unified generic signaling route fallback
   socket.on('SIGNAL_EXCHANGE', (data) => {
     const target = data.target_id || data.target_unit;
     console.log(`[WEBRTC SIGNAL] ${data.sender_id || socket.id} -> Target Unit: ${target}`);
@@ -174,9 +205,6 @@ socket.on('CHAT_MESSAGE', (data) => {
     }
   });
 
-  // Fallbacks for legacy WebRTC individual events
-  socket.on('WEBRTC_OFFER', (data) => io.to(data.target_unit).emit('WEBRTC_OFFER', data));
-  socket.on('WEBRTC_ANSWER', (data) => io.to(data.target_unit).emit('WEBRTC_ANSWER', data));
   socket.on('ICE_CANDIDATE', (data) => io.to(data.target_unit).emit('ICE_CANDIDATE', data));
 
   // 7. DISCONNECT HANDLING
