@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PNP-HPG Light Command Console</title>
+  <title>VOGE Telematics & Dispatch Command</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -11,8 +11,8 @@
 
   <style>
     ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
 
     /* Strobe Lights Simulation Layer */
     @keyframes police-strobe {
@@ -32,18 +32,18 @@
     }
   </style>
 </head>
-<body class="bg-slate-100 font-sans text-slate-800 antialiased h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-900 font-sans text-slate-100 antialiased h-screen flex flex-col overflow-hidden">
 
   <!-- EMERGENCY LIGHTS OVERLAY LAYER -->
   <div id="strobe-overlay" class="fixed inset-0 z-40 hidden"></div>
 
   <!-- WEBRTC VOICE & VIDEO CALL OVERLAY MODAL -->
-  <div id="webrtc-modal" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col">
-      <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+  <div id="webrtc-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-2xl overflow-hidden flex flex-col">
+      <div class="bg-slate-950 text-white p-4 flex justify-between items-center border-b border-slate-800">
         <div class="flex items-center gap-2">
           <span class="h-3 w-3 rounded-full bg-emerald-500 animate-ping"></span>
-          <h3 id="call-modal-title" class="font-bold text-sm uppercase tracking-wider">Live Channel Connected</h3>
+          <h3 id="call-modal-title" class="font-bold text-sm uppercase tracking-wider text-slate-200">VOGE Live Channel Connected</h3>
         </div>
         <button onclick="endCall()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
@@ -51,13 +51,13 @@
       <!-- Video Streams Container -->
       <div class="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
         <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
-        <video id="local-video" autoplay playsinline muted class="absolute bottom-4 right-4 w-32 aspect-video bg-slate-800 rounded-lg border-2 border-white object-cover shadow-lg"></video>
+        <video id="local-video" autoplay playsinline muted class="absolute bottom-4 right-4 w-32 aspect-video bg-slate-800 rounded-lg border-2 border-slate-600 object-cover shadow-lg"></video>
         <audio id="remote-audio" autoplay></audio>
       </div>
 
       <!-- Call Action Controls -->
-      <div class="p-4 bg-slate-50 flex items-center justify-center gap-4">
-        <button id="btn-toggle-mic" onclick="toggleLocalMic()" class="h-12 w-12 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center hover:bg-slate-300 transition">
+      <div class="p-4 bg-slate-900 flex items-center justify-center gap-4 border-t border-slate-800">
+        <button id="btn-toggle-mic" onclick="toggleLocalMic()" class="h-12 w-12 rounded-full bg-slate-800 text-slate-200 flex items-center justify-center hover:bg-slate-700 transition">
           <i id="mic-icon" class="fa-solid fa-microphone"></i>
         </button>
         <button onclick="endCall()" class="px-6 py-3 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold flex items-center gap-2 text-sm shadow transition">
@@ -68,22 +68,22 @@
   </div>
 
   <!-- TOP NAVIGATION BAR -->
-  <header class="sticky top-0 z-30 flex h-16 w-full shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
-    <div class="flex items-center gap-3">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/c/c3/Highway_Patrol_Group.png" alt="PNP HPG Seal" referrerpolicy="no-referrer" class="h-10 w-auto object-contain shrink-0" />
-      <div>
-        <span class="text-base font-black tracking-wider text-slate-900 block leading-none">PNP HIGHWAY PATROL GROUP</span>
-        <span class="text-[10px] text-blue-700 font-bold tracking-widest uppercase">Tactical Dispatch & Intercept Command</span>
+  <header class="sticky top-0 z-30 flex h-16 w-full shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950 px-6 shadow-md">
+    <div class="flex items-center gap-4">
+      <img src="https://images.seeklogo.com/logo-png/43/1/voge-motos-logo-png_seeklogo-436194.png" alt="VOGE Logo" referrerpolicy="no-referrer" class="h-8 w-auto object-contain shrink-0 filter brightness-0 invert" />
+      <div class="border-l border-slate-800 pl-4">
+        <span class="text-base font-black tracking-wider text-white block leading-none">VOGE TELEMATICS SYSTEM</span>
+        <span class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">Smart Fleet & Rider Command Console</span>
       </div>
     </div>
 
     <div class="flex items-center gap-4">
-      <div class="text-right border-r border-slate-200 pr-4">
-        <span class="block text-[10px] font-bold tracking-wider uppercase text-slate-400">Tactical Time</span>
-        <span id="live-clock" class="block text-xs font-mono font-bold text-blue-900">00:00:00 PST</span>
+      <div class="text-right border-r border-slate-800 pr-4">
+        <span class="block text-[10px] font-bold tracking-wider uppercase text-slate-500">System Time</span>
+        <span id="live-clock" class="block text-xs font-mono font-bold text-cyan-400">00:00:00 PST</span>
       </div>
-      <div id="status-badge" class="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500 border border-slate-200">
-        <span class="h-2 w-2 rounded-full bg-slate-400"></span> OFFLINE
+      <div id="status-badge" class="flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-slate-500 border border-slate-800">
+        <span class="h-2 w-2 rounded-full bg-slate-600"></span> OFFLINE
       </div>
     </div>
   </header>
@@ -92,132 +92,132 @@
   <div class="flex flex-1 w-full overflow-hidden">
 
     <!-- LEFT SIDEBAR -->
-    <aside class="w-96 border-r border-slate-200 bg-white flex flex-col h-full overflow-y-auto shrink-0 shadow-sm z-10 p-4 space-y-4">
+    <aside class="w-96 border-r border-slate-800 bg-slate-950 flex flex-col h-full overflow-y-auto shrink-0 shadow-xl z-10 p-4 space-y-4">
       
-      <!-- PATROL OFFICER PROFILE CARD -->
-      <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 shadow-inner">
+      <!-- VOGE RIDER PROFILE CARD -->
+      <div class="p-3.5 bg-slate-900 rounded-xl border border-slate-800 shadow-inner">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-900 font-black text-amber-400 text-xs shadow">
-              HPG
+            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800 border border-slate-700 font-black text-cyan-400 text-xs shadow">
+              VOGE
             </div>
             <div>
-              <span id="rider-unit-id" class="font-mono text-[10px] font-bold text-blue-900 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded">HPG-PATROL-01</span>
-              <h2 class="font-bold text-slate-900 text-sm mt-0.5">Patrol Unit Alpha</h2>
+              <span id="rider-unit-id" class="font-mono text-[10px] font-bold text-cyan-400 bg-cyan-950/80 border border-cyan-800 px-1.5 py-0.5 rounded">VOGE-500AC-01</span>
+              <h2 class="font-bold text-slate-100 text-sm mt-0.5">Voge Rider Alpha</h2>
             </div>
           </div>
-          <span id="rider-status" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">PATROLLING</span>
+          <span id="rider-status" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE RIDE</span>
         </div>
 
         <div class="grid grid-cols-2 gap-2 mt-3">
-          <div class="bg-white p-2.5 rounded-lg border border-slate-200">
-            <span class="text-[10px] font-bold uppercase text-slate-400 block">Patrol Speed</span>
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-[10px] font-bold uppercase text-slate-500 block">Cruising Speed</span>
             <div class="flex items-baseline gap-1">
-              <span id="rider-speed" class="text-xl font-black font-mono text-blue-900">0.0</span>
+              <span id="rider-speed" class="text-xl font-black font-mono text-cyan-400">0.0</span>
               <span class="text-xs text-slate-500">km/h</span>
             </div>
           </div>
-          <div class="bg-white p-2.5 rounded-lg border border-slate-200">
-            <span class="text-[10px] font-bold uppercase text-slate-400 block">Battery Power</span>
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-[10px] font-bold uppercase text-slate-500 block">Battery / Power</span>
             <div class="flex items-baseline gap-1">
-              <span id="rider-battery" class="text-xl font-black font-mono text-emerald-600">0</span>
+              <span id="rider-battery" class="text-xl font-black font-mono text-emerald-400">0</span>
               <span class="text-xs text-slate-500">%</span>
             </div>
           </div>
         </div>
 
-        <div class="mt-2 bg-white p-2.5 rounded-lg border border-slate-200 text-xs font-mono flex justify-between items-center">
+        <div class="mt-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs font-mono flex justify-between items-center">
           <div>
-            <span class="text-[9px] text-slate-400 font-sans block font-bold uppercase">Coordinates</span>
-            <span id="rider-coords" class="font-bold text-slate-800">14.5995, 120.9842</span>
+            <span class="text-[9px] text-slate-500 font-sans block font-bold uppercase">GPS Position</span>
+            <span id="rider-coords" class="font-bold text-slate-300">14.5995, 120.9842</span>
           </div>
         </div>
       </div>
 
       <!-- TACTICAL VOICE, VIDEO & PTT COMMS -->
       <div>
-        <span class="block text-[11px] font-bold uppercase text-slate-400 mb-2">Tactical Comms Center</span>
+        <span class="block text-[11px] font-bold uppercase text-slate-500 mb-2">Comms & Intercom Center</span>
         
         <div class="grid grid-cols-2 gap-2 mb-2">
-          <button onclick="startCall('VOICE')" class="flex items-center justify-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg hover:border-emerald-500 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition">
-            <i class="fa-solid fa-phone text-emerald-600"></i> Voice Call
+          <button onclick="startCall('VOICE')" class="flex items-center justify-center gap-2 p-2.5 bg-emerald-950/40 border border-emerald-800 hover:border-emerald-500 hover:bg-emerald-900/50 text-emerald-300 text-xs font-bold rounded-lg transition">
+            <i class="fa-solid fa-phone text-emerald-400"></i> Voice Call
           </button>
-          <button onclick="startCall('VIDEO')" class="flex items-center justify-center gap-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg hover:border-blue-500 hover:bg-blue-100 text-blue-800 text-xs font-bold transition">
-            <i class="fa-solid fa-video text-blue-600"></i> Video Call
+          <button onclick="startCall('VIDEO')" class="flex items-center justify-center gap-2 p-2.5 bg-cyan-950/40 border border-cyan-800 hover:border-cyan-500 hover:bg-cyan-900/50 text-cyan-300 text-xs font-bold rounded-lg transition">
+            <i class="fa-solid fa-video text-cyan-400"></i> Video Call
           </button>
         </div>
 
         <!-- Push-To-Talk Button -->
-        <button id="btn-ptt" onmousedown="startPTT()" onmouseup="stopPTT()" onmouseleave="stopPTT()" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 shadow transition select-none cursor-pointer">
-          <i class="fa-solid fa-walkie-talkie text-amber-400"></i> Push-To-Talk (Hold)
+        <button id="btn-ptt" onmousedown="startPTT()" onmouseup="stopPTT()" onmouseleave="stopPTT()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 border border-slate-700 shadow transition select-none cursor-pointer">
+          <i class="fa-solid fa-walkie-talkie text-cyan-400"></i> Push-To-Talk Intercom
         </button>
       </div>
 
       <!-- CAMERA FEEDS CONTROL -->
       <div>
-        <span class="block text-[11px] font-bold uppercase text-slate-400 mb-2">Remote Camera Feeds</span>
+        <span class="block text-[11px] font-bold uppercase text-slate-500 mb-2">Dashcam Feeds</span>
         <div class="grid grid-cols-2 gap-2">
-          <button onclick="triggerCamera('FRONT')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-xs font-bold transition">
-            <i class="fa-solid fa-camera text-blue-700"></i> Front Cam
+          <button onclick="triggerCamera('FRONT')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-900 border border-slate-800 hover:border-cyan-500 hover:bg-slate-850 text-slate-300 text-xs font-bold rounded-lg transition">
+            <i class="fa-solid fa-camera text-cyan-400"></i> Front Cam
           </button>
-          <button onclick="triggerCamera('BACK')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-slate-700 text-xs font-bold transition">
-            <i class="fa-solid fa-video text-blue-700"></i> Rear Cam
+          <button onclick="triggerCamera('BACK')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-900 border border-slate-800 hover:border-cyan-500 hover:bg-slate-850 text-slate-300 text-xs font-bold rounded-lg transition">
+            <i class="fa-solid fa-video text-cyan-400"></i> Rear Cam
           </button>
         </div>
       </div>
 
       <!-- REMOTE AUDIO / LIGHT / ENGINE TELEMATICS OVERRIDES -->
       <div>
-        <span class="block text-[11px] font-bold uppercase text-slate-400 mb-2">Vehicle Overrides & Sound</span>
+        <span class="block text-[11px] font-bold uppercase text-slate-500 mb-2">Vehicle Overrides & Sound</span>
         
         <!-- ENGINE IMMOBILIZER / LOCK SWITCH CARD -->
-        <div class="p-3 mb-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+        <div class="p-3 mb-2 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between">
           <div class="flex items-center gap-2.5">
-            <div id="lock-icon-bg" class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+            <div id="lock-icon-bg" class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-950 border border-emerald-800 text-emerald-400">
               <i id="lock-icon" class="fa-solid fa-lock-open text-xs"></i>
             </div>
             <div>
-              <span class="block text-xs font-bold text-slate-800">Vehicle Access</span>
-              <span id="lock-status-text" class="block text-[10px] font-extrabold text-emerald-600 uppercase">OPERATIONAL</span>
+              <span class="block text-xs font-bold text-slate-200">Ignition Security</span>
+              <span id="lock-status-text" class="block text-[10px] font-extrabold text-emerald-400 uppercase">UNLOCKED</span>
             </div>
           </div>
 
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" id="toggle-vehicle-lock" onchange="toggleVehicleLock(this.checked)" class="sr-only peer">
-            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+            <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600 border border-slate-700"></div>
           </label>
         </div>
 
         <!-- Siren, Lights, Horn Controls -->
         <div class="space-y-2">
           <!-- Horn Control Button -->
-          <button onclick="triggerHorn()" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-amber-500 hover:bg-amber-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition">
-            <i class="fa-solid fa-bullhorn text-amber-600"></i> Sound Horn (0.5s)
+          <button onclick="triggerHorn()" class="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg hover:border-amber-500 hover:bg-slate-850 text-slate-300 text-xs font-bold flex items-center justify-center gap-2 transition">
+            <i class="fa-solid fa-bullhorn text-amber-500"></i> Sound Horn
           </button>
 
           <!-- Siren ON / OFF Group -->
           <div class="grid grid-cols-2 gap-2">
-            <button id="btn-siren-on" onclick="setSirenState(true)" class="p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-red-500 hover:bg-red-50 text-red-700 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+            <button id="btn-siren-on" onclick="setSirenState(true)" class="p-2 bg-slate-900 border border-slate-800 rounded-lg hover:border-red-500 hover:bg-slate-850 text-red-400 text-xs font-bold flex items-center justify-center gap-1.5 transition">
               <i class="fa-solid fa-triangle-exclamation"></i> Siren ON
             </button>
-            <button id="btn-siren-off" onclick="setSirenState(false)" class="p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-400 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+            <button id="btn-siren-off" onclick="setSirenState(false)" class="p-2 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-600 hover:bg-slate-850 text-slate-400 text-xs font-bold flex items-center justify-center gap-1.5 transition">
               <i class="fa-solid fa-volume-xmark"></i> Siren OFF
             </button>
           </div>
 
           <!-- Strobe Lights ON / OFF Group -->
           <div class="grid grid-cols-2 gap-2">
-            <button id="btn-lights-on" onclick="setLightsState(true)" class="p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-blue-700 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+            <button id="btn-lights-on" onclick="setLightsState(true)" class="p-2 bg-slate-900 border border-slate-800 rounded-lg hover:border-cyan-500 hover:bg-slate-850 text-cyan-400 text-xs font-bold flex items-center justify-center gap-1.5 transition">
               <i class="fa-solid fa-lightbulb"></i> Lights ON
             </button>
-            <button id="btn-lights-off" onclick="setLightsState(false)" class="p-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-400 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+            <button id="btn-lights-off" onclick="setLightsState(false)" class="p-2 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-600 hover:bg-slate-850 text-slate-400 text-xs font-bold flex items-center justify-center gap-1.5 transition">
               <i class="fa-solid fa-power-off"></i> Lights OFF
             </button>
           </div>
 
           <!-- All Clear / Master Stop Button -->
-          <button onclick="clearAllOverrides()" class="w-full py-2 bg-slate-900 hover:bg-black text-white text-xs font-extrabold uppercase tracking-wider rounded-lg flex items-center justify-center gap-2 shadow transition">
-            <i class="fa-solid fa-shield-cat text-emerald-400"></i> All Clear (Stop Siren & Lights)
+          <button onclick="clearAllOverrides()" class="w-full py-2 bg-slate-800 hover:bg-slate-750 text-white text-xs font-extrabold uppercase tracking-wider rounded-lg flex items-center justify-center gap-2 shadow border border-slate-700 transition">
+            <i class="fa-solid fa-shield-cat text-emerald-400"></i> Clear All Alerts
           </button>
         </div>
       </div>
@@ -225,23 +225,23 @@
     </aside>
 
     <!-- MAIN MAP AND CHAT LOG -->
-    <main class="flex-1 flex flex-col h-full bg-slate-100 relative">
+    <main class="flex-1 flex flex-col h-full bg-slate-950 relative">
       <div id="map" class="flex-1 w-full h-full z-0"></div>
 
       <!-- BOTTOM DISPATCH COMMS PANEL -->
-      <div class="h-48 bg-white border-t border-slate-200 flex p-3 z-10 shrink-0">
-        <div class="flex-1 bg-slate-50 border border-slate-200 rounded-xl flex flex-col overflow-hidden">
-          <div class="px-3 py-1.5 border-b border-slate-200 bg-white flex items-center justify-between">
-            <span class="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-2">
-              <i class="fa-solid fa-radio text-blue-700"></i> Dispatch Channel Log
+      <div class="h-48 bg-slate-950 border-t border-slate-800 flex p-3 z-10 shrink-0">
+        <div class="flex-1 bg-slate-900 border border-slate-800 rounded-xl flex flex-col overflow-hidden">
+          <div class="px-3 py-1.5 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
+            <span class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-radio text-cyan-500"></i> Dispatch & Intercom Channel
             </span>
           </div>
 
-          <div id="chat-messages" class="flex-1 p-2.5 overflow-y-auto space-y-1.5 text-xs font-sans"></div>
+          <div id="chat-messages" class="flex-1 p-2.5 overflow-y-auto space-y-1.5 text-xs font-sans text-slate-300"></div>
 
-          <div class="p-2 border-t border-slate-200 bg-white flex gap-2">
-            <input type="text" id="chat-input" placeholder="Type message to unit..." class="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 outline-none focus:border-blue-500" />
-            <button id="btn-send-chat" class="bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs px-4 py-1.5 rounded-lg transition">Send</button>
+          <div class="p-2 border-t border-slate-800 bg-slate-950 flex gap-2">
+            <input type="text" id="chat-input" placeholder="Transmit message to rider..." class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-cyan-500" />
+            <button id="btn-send-chat" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs px-4 py-1.5 rounded-lg transition">Send</button>
           </div>
         </div>
       </div>
@@ -252,7 +252,7 @@
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
   <script>
-    const TARGET_UNIT = "HPG-PATROL-01"; // Default target mobile unit
+    const TARGET_UNIT = "VOGE-500AC-01"; // Default target mobile unit
     let sirenActive = false;
     let lightsActive = false;
     let audioCtx = null;
@@ -263,17 +263,17 @@
       document.getElementById('live-clock').innerText = new Date().toTimeString().split(' ')[0] + ' PST';
     }, 1000);
 
-    // Leaflet Map Initialization
-    const map = L.map('map', { zoomControl: false }).setView([14.5995, 120.9842], 13);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+    // Leaflet Map Initialization (Set initial close zoom to level 16)
+    const map = L.map('map', { zoomControl: false }).setView([14.5995, 120.9842], 16);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
 
     const markers = {};
     const socket = io(window.location.origin, { query: { role: "DISPATCHER", unit_id: "DISPATCH_MAIN" } });
 
     socket.on('connect', () => {
       const badge = document.getElementById('status-badge');
-      badge.className = "flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200";
-      badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> ONLINE`;
+      badge.className = "flex items-center gap-2 rounded-full bg-emerald-950/80 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-800";
+      badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> ONLINE`;
       
       // Register device with server
       socket.emit('REGISTER_DEVICE', { unit_id: 'DISPATCH_MAIN', role: 'DISPATCHER' });
@@ -304,7 +304,7 @@
           reader.onloadend = () => {
             socket.emit('PTT_AUDIO_TRANSMIT', {
               target_unit: TARGET_UNIT,
-              sender: 'Command Center',
+              sender: 'VOGE Control',
               audio: reader.result
             });
           };
@@ -321,7 +321,7 @@
     function stopPTT() {
       const btn = document.getElementById('btn-ptt');
       btn.classList.remove('ptt-active');
-      btn.innerHTML = `<i class="fa-solid fa-walkie-talkie text-amber-400"></i> Push-To-Talk (Hold)`;
+      btn.innerHTML = `<i class="fa-solid fa-walkie-talkie text-cyan-400"></i> Push-To-Talk Intercom`;
 
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
@@ -330,39 +330,34 @@
 
     // Receive incoming PTT audio from Mobile Unit
     socket.on('PTT_AUDIO_RECEIVE', (data) => {
-  let rawAudio = data.audio || data.audio_base64 || '';
+      let rawAudio = data.audio || data.audio_base64 || '';
 
-  if (rawAudio.includes('[PTT_AUDIO]:')) {
-    rawAudio = rawAudio.split('[PTT_AUDIO]:')[1].trim();
-  }
-  if (rawAudio.startsWith('//')) {
-    rawAudio = rawAudio.substring(2);
-  }
+      if (rawAudio.includes('[PTT_AUDIO]:')) {
+        rawAudio = rawAudio.split('[PTT_AUDIO]:')[1].trim();
+      }
+      if (rawAudio.startsWith('//')) {
+        rawAudio = rawAudio.substring(2);
+      }
 
-  // Handle formatted Data URIs vs Raw Base64
-  let audioSrc = rawAudio;
-  if (!rawAudio.startsWith('data:')) {
-    // Mobile apps usually send AAC, M4A, or OGG payload.
-    // Try browser-native HTML5 audio guessing:
-    audioSrc = 'data:audio/aac;base64,' + rawAudio;
-  }
+      let audioSrc = rawAudio;
+      if (!rawAudio.startsWith('data:')) {
+        audioSrc = 'data:audio/aac;base64,' + rawAudio;
+      }
 
-  const audio = new Audio(audioSrc);
-  
-  // Fallback trigger if AAC mime fails
-  audio.onerror = () => {
-    console.warn("AAC decoding failed. Trying WEBM format fallback...");
-    const fallbackSrc = 'data:audio/webm;base64,' + rawAudio;
-    const fallbackAudio = new Audio(fallbackSrc);
-    fallbackAudio.play().catch(e => console.error("PTT Audio Playback Error:", e));
-  };
+      const audio = new Audio(audioSrc);
+      
+      audio.onerror = () => {
+        const fallbackSrc = 'data:audio/webm;base64,' + rawAudio;
+        const fallbackAudio = new Audio(fallbackSrc);
+        fallbackAudio.play().catch(e => console.error("PTT Audio Playback Error:", e));
+      };
 
-  audio.play().catch(err => {
-    console.warn("Autoplay blocked or decoding error:", err);
-  });
+      audio.play().catch(err => {
+        console.warn("Autoplay blocked or decoding error:", err);
+      });
 
-  appendChatMessage(data.sender || 'Mobile Unit', "🎙️ [PTT Audio Message Received]");
-});
+      appendChatMessage(data.sender || 'VOGE Rider', "🎙️ [PTT Audio Message Received]");
+    });
 
     // --- WEBRTC VOICE & VIDEO CALL HANDLERS ---
     let peerConnection = null;
@@ -390,28 +385,25 @@
 
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-        // Handle Remote Stream Tracks
         peerConnection.ontrack = (event) => {
-  const remoteVid = document.getElementById('remote-video');
-  const remoteAud = document.getElementById('remote-audio');
+          const remoteVid = document.getElementById('remote-video');
+          const remoteAud = document.getElementById('remote-audio');
 
-  if (type === 'VIDEO') {
-    remoteVid.srcObject = event.streams[0];
-    remoteVid.play().catch(err => console.warn("Remote video playback prevented:", err));
-  } else {
-    remoteAud.srcObject = event.streams[0];
-    remoteAud.play().catch(err => console.warn("Remote audio playback prevented:", err));
-  }
-};
+          if (type === 'VIDEO') {
+            remoteVid.srcObject = event.streams[0];
+            remoteVid.play().catch(err => console.warn("Remote video playback prevented:", err));
+          } else {
+            remoteAud.srcObject = event.streams[0];
+            remoteAud.play().catch(err => console.warn("Remote audio playback prevented:", err));
+          }
+        };
 
-        // ICE Candidate dispatching
         peerConnection.onicecandidate = (event) => {
           if (event.candidate) {
             socket.emit('WEBRTC_ICE_CANDIDATE', { target_unit: TARGET_UNIT, candidate: event.candidate });
           }
         };
 
-        // Create WebRTC Offer
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
         socket.emit('WEBRTC_OFFER', { target_unit: TARGET_UNIT, offer: offer, type: type });
@@ -444,11 +436,11 @@
           const btn = document.getElementById('btn-toggle-mic');
           
           if (micMuted) {
-            micIcon.className = "fa-solid fa-microphone-slash text-red-600";
-            btn.classList.add('bg-red-100');
+            micIcon.className = "fa-solid fa-microphone-slash text-red-500";
+            btn.classList.add('bg-red-950/50');
           } else {
             micIcon.className = "fa-solid fa-microphone";
-            btn.classList.remove('bg-red-100');
+            btn.classList.remove('bg-red-950/50');
           }
         }
       }
@@ -469,7 +461,7 @@
 
     socket.on('WEBRTC_HANGUP', () => { endCall(); });
 
-    // 1. ENGINE IMMOBILIZER SWITCH CONTROL
+    // ENGINE IMMOBILIZER SWITCH CONTROL
     function toggleVehicleLock(shouldLock) {
       const actionCmd = shouldLock ? 'DISABLE_VEHICLE' : 'ENABLE_VEHICLE';
       socket.emit('DISPATCH_COMMAND', {
@@ -489,47 +481,47 @@
 
       if (isLocked) {
         statusText.innerText = "IMMOBILIZED";
-        statusText.className = "block text-[10px] font-extrabold text-red-600 uppercase";
-        iconBg.className = "flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-700";
+        statusText.className = "block text-[10px] font-extrabold text-red-500 uppercase";
+        iconBg.className = "flex h-8 w-8 items-center justify-center rounded-lg bg-red-950 border border-red-800 text-red-400";
         icon.className = "fa-solid fa-lock text-xs";
       } else {
-        statusText.innerText = "OPERATIONAL";
-        statusText.className = "block text-[10px] font-extrabold text-emerald-600 uppercase";
-        iconBg.className = "flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700";
+        statusText.innerText = "UNLOCKED";
+        statusText.className = "block text-[10px] font-extrabold text-emerald-400 uppercase";
+        iconBg.className = "flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-950 border border-emerald-800 text-emerald-400";
         icon.className = "fa-solid fa-lock-open text-xs";
       }
     }
 
-    // 2. INCOMING CHAT HANDLER
+    // INCOMING CHAT HANDLER
     socket.on('CHAT_MESSAGE', (data) => {
-  const messageText = data.text || data.message || '';
+      const messageText = data.text || data.message || '';
 
-  if (messageText.includes('[PTT_AUDIO]:')) {
-    let base64Audio = messageText.split('[PTT_AUDIO]:')[1].trim();
-    if (base64Audio.startsWith('//')) {
-      base64Audio = base64Audio.substring(2);
-    }
+      if (messageText.includes('[PTT_AUDIO]:')) {
+        let base64Audio = messageText.split('[PTT_AUDIO]:')[1].trim();
+        if (base64Audio.startsWith('//')) {
+          base64Audio = base64Audio.substring(2);
+        }
 
-    let audioSrc = base64Audio.startsWith('data:') 
-      ? base64Audio 
-      : 'data:audio/aac;base64,' + base64Audio;
+        let audioSrc = base64Audio.startsWith('data:') 
+          ? base64Audio 
+          : 'data:audio/aac;base64,' + base64Audio;
 
-    const audio = new Audio(audioSrc);
+        const audio = new Audio(audioSrc);
 
-    audio.onerror = () => {
-      const fallbackAudio = new Audio('data:audio/webm;base64,' + base64Audio);
-      fallbackAudio.play().catch(e => console.error("PTT Chat Audio Fallback Error:", e));
-    };
+        audio.onerror = () => {
+          const fallbackAudio = new Audio('data:audio/webm;base64,' + base64Audio);
+          fallbackAudio.play().catch(e => console.error("PTT Chat Audio Fallback Error:", e));
+        };
 
-    audio.play().catch(err => console.warn("PTT Chat Autoplay blocked:", err));
+        audio.play().catch(err => console.warn("PTT Chat Autoplay blocked:", err));
 
-    appendChatMessage(data.sender || 'Mobile Unit', "🎙️ [PTT Audio Message Received]");
-  } else {
-    appendChatMessage(data.sender || 'Mobile Unit', messageText);
-  }
-});
+        appendChatMessage(data.sender || 'VOGE Rider', "🎙️ [PTT Audio Message Received]");
+      } else {
+        appendChatMessage(data.sender || 'VOGE Rider', messageText);
+      }
+    });
 
-    // 3. INCOMING OVERRIDE EXECUTIONS
+    // INCOMING OVERRIDE EXECUTIONS
     socket.on('EXECUTE_OVERRIDE', (cmd) => {
       if (cmd.action === 'HORN') playHornSound();
       if (cmd.action === 'TOGGLE_SIREN' || cmd.action === 'SIREN') handleSirenUI(cmd.state === true || cmd.extra === 'ON' || cmd.extra === 'TRUE');
@@ -544,14 +536,14 @@
 
     // Web Audio Synthesizer Controls
     function getAudioContext() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-  return audioCtx;
-}
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
 
     function triggerHorn() {
       socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'HORN' });
@@ -570,8 +562,6 @@
       osc.start();
       osc.stop(ctx.currentTime + 0.6);
     }
-
-    // --- DEDICATED SIREN & LIGHTS DISPATCH FUNCTIONS ---
 
     function setSirenState(enable) {
       sirenActive = enable;
@@ -612,12 +602,10 @@
       sirenActive = active;
       const ctx = getAudioContext();
       const btnOn = document.getElementById('btn-siren-on');
-      const btnOff = document.getElementById('btn-siren-off');
 
       if (sirenActive) {
         btnOn.classList.add('bg-red-600', 'text-white', 'border-red-600');
-        btnOn.classList.remove('bg-slate-50', 'text-red-700');
-        btnOff.classList.remove('bg-slate-300');
+        btnOn.classList.remove('bg-slate-900', 'text-red-400');
 
         if (!sirenOscillator) {
           sirenOscillator = ctx.createOscillator();
@@ -637,7 +625,7 @@
         }
       } else {
         btnOn.classList.remove('bg-red-600', 'text-white', 'border-red-600');
-        btnOn.classList.add('bg-slate-50', 'text-red-700');
+        btnOn.classList.add('bg-slate-900', 'text-red-400');
 
         if (sirenOscillator) {
           try {
@@ -657,18 +645,18 @@
       if (lightsActive) {
         overlay.classList.remove('hidden');
         overlay.classList.add('active-strobe');
-        btnOn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
-        btnOn.classList.remove('bg-slate-50', 'text-blue-700');
+        btnOn.classList.add('bg-cyan-600', 'text-white', 'border-cyan-600');
+        btnOn.classList.remove('bg-slate-900', 'text-cyan-400');
       } else {
         overlay.classList.add('hidden');
         overlay.classList.remove('active-strobe');
-        btnOn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
-        btnOn.classList.add('bg-slate-50', 'text-blue-700');
+        btnOn.classList.remove('bg-cyan-600', 'text-white', 'border-cyan-600');
+        btnOn.classList.add('bg-slate-900', 'text-cyan-400');
       }
     }
 
     function triggerCamera(facing) {
-      appendChatMessage("Command Center", `Sent CAMERA_ACTIVATE (${facing}) to mobile...`);
+      appendChatMessage("VOGE Control", `Sent CAMERA_ACTIVATE (${facing}) to unit...`);
       socket.emit('DISPATCH_COMMAND', {
         target_unit: 'ALL',
         action: 'ACTIVATE_CAMERA',
@@ -680,8 +668,8 @@
     function appendChatMessage(sender, text) {
       const chatBox = document.getElementById('chat-messages');
       const msgDiv = document.createElement('div');
-      msgDiv.className = "p-1.5 rounded-lg bg-white border border-slate-200 text-xs";
-      msgDiv.innerHTML = `<b class="text-blue-900">${sender}:</b> ${text}`;
+      msgDiv.className = "p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs";
+      msgDiv.innerHTML = `<b class="text-cyan-400">${sender}:</b> ${text}`;
       chatBox.appendChild(msgDiv);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -694,29 +682,33 @@
       if (input.value.trim() !== '') {
         socket.emit('CHAT_MESSAGE', {
           target_unit: 'ALL',
-          sender: 'Command Center',
+          sender: 'VOGE Control',
           text: input.value
         });
         input.value = '';
       }
     }
 
-    // Live Telemetry Receiver
+    // Live Telemetry Receiver with Auto-Zoom and Auto-Centering
     socket.on('TELEMETRY_UPDATE', (data) => {
       document.getElementById('rider-speed').innerText = Number(data.speed || 0).toFixed(1);
       document.getElementById('rider-battery').innerText = Math.round(data.battery || 0);
       document.getElementById('rider-coords').innerText = `${Number(data.lat).toFixed(4)}, ${Number(data.lng).toFixed(4)}`;
 
-      // Sync vehicle lock state from mobile telemetry
       if (typeof data.is_locked !== 'undefined') {
         updateLockStateUI(data.is_locked);
       }
 
+      const targetLatLng = [data.lat, data.lng];
+
       if (!markers[data.unit_id]) {
-        markers[data.unit_id] = L.marker([data.lat, data.lng]).addTo(map);
+        markers[data.unit_id] = L.marker(targetLatLng).addTo(map);
       } else {
-        markers[data.unit_id].setLatLng([data.lat, data.lng]);
+        markers[data.unit_id].setLatLng(targetLatLng);
       }
+
+      // Auto center map with animated transition and zoom level 16
+      map.flyTo(targetLatLng, 16, { animate: true, duration: 1 });
     });
   </script>
 </body>
