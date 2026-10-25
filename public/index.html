@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VOGE Telematics & Dispatch Command</title>
+  <title>VOGE One Telemetry Tracking</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -29,6 +29,12 @@
       background-color: #ef4444 !important;
       color: #ffffff !important;
       animation: pulse 1s infinite;
+    }
+
+    /* Smooth transition for bike lean indicator needle */
+    #lean-bike-icon {
+      transform-origin: 50% 80%;
+      transition: transform 0.2s ease-out;
     }
   </style>
 </head>
@@ -70,10 +76,9 @@
   <!-- TOP NAVIGATION BAR -->
   <header class="sticky top-0 z-30 flex h-16 w-full shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950 px-6 shadow-md">
     <div class="flex items-center gap-4">
-      <img src="https://images.seeklogo.com/logo-png/43/1/voge-motos-logo-png_seeklogo-436194.png" alt="VOGE Logo" referrerpolicy="no-referrer" class="h-8 w-auto object-contain shrink-0 filter brightness-0 invert" />
       <div class="border-l border-slate-800 pl-4">
-        <span class="text-base font-black tracking-wider text-white block leading-none">VOGE TELEMATICS SYSTEM</span>
-        <span class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">Smart Fleet & Rider Command Console</span>
+        <span class="text-base font-black tracking-wider text-white block leading-none">VOGE ONE</span>
+        <span class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">Smart Fleet Command Console</span>
       </div>
     </div>
 
@@ -130,6 +135,75 @@
           <div>
             <span class="text-[9px] text-slate-500 font-sans block font-bold uppercase">GPS Position</span>
             <span id="rider-coords" class="font-bold text-slate-300">14.5995, 120.9842</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- VEHICLE DYNAMICS & TILT TELEMETRY CARD WITH VISUAL GAUGE -->
+      <div class="p-3.5 bg-slate-900 rounded-xl border border-slate-800 shadow-inner space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2">
+            <i class="fa-solid fa-compass text-cyan-400"></i> Vehicle Dynamics & Engine
+          </span>
+          <button onclick="calibrateZeroTilt()" class="px-2 py-1 bg-cyan-950 hover:bg-cyan-900 text-cyan-400 border border-cyan-800 rounded text-[10px] font-bold transition">
+            <i class="fa-solid fa-crosshairs"></i> Calibrate 0°
+          </button>
+        </div>
+
+        <!-- Dynamic Lean Angle SVG Visual Meter -->
+        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 flex flex-col items-center justify-center relative overflow-hidden">
+          <span class="text-[9px] font-bold text-slate-500 uppercase absolute top-2 left-2">Real-Time Lean Arc</span>
+          <svg class="w-36 h-20" viewBox="0 0 100 50">
+            <!-- Arc Horizon Line -->
+            <path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="#334155" stroke-width="3" stroke-dasharray="2 2" />
+            <!-- Center Horizon Marker -->
+            <line x1="50" y1="5" x2="50" y2="12" stroke="#00e676" stroke-width="2" />
+            <!-- Dynamic Tilting Bike Line Needle -->
+            <g id="lean-bike-icon">
+              <line x1="50" y1="45" x2="50" y2="12" stroke="#00e676" stroke-width="4" stroke-linecap="round" />
+              <circle cx="50" cy="12" r="3" fill="#00e676" />
+            </g>
+          </svg>
+          <div class="text-center mt-1">
+            <span id="rider-lean-dir" class="text-[10px] font-extrabold uppercase text-slate-400">UPRIGHT</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <!-- Lean Angle (Roll) -->
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-[10px] font-bold uppercase text-slate-500 block">Lean Angle (Roll)</span>
+            <div class="flex items-baseline gap-1">
+              <span id="rider-lean" class="text-xl font-black font-mono text-cyan-400">0.0</span>
+              <span class="text-xs text-slate-500">°</span>
+            </div>
+          </div>
+
+          <!-- Pitch Angle -->
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-[10px] font-bold uppercase text-slate-500 block">Pitch Angle</span>
+            <div class="flex items-baseline gap-1">
+              <span id="rider-pitch" class="text-xl font-black font-mono text-cyan-400">0.0</span>
+              <span class="text-xs text-slate-500">°</span>
+            </div>
+          </div>
+
+          <!-- Engine RPM -->
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-[10px] font-bold uppercase text-slate-500 block">Engine Speed</span>
+            <div class="flex items-baseline gap-1">
+              <span id="rider-rpm" class="text-xl font-black font-mono text-emerald-400">0</span>
+              <span class="text-xs text-slate-500">RPM</span>
+            </div>
+          </div>
+
+          <!-- Coolant Temp -->
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-[10px] font-bold uppercase text-slate-500 block">Coolant Temp</span>
+            <div class="flex items-baseline gap-1">
+              <span id="rider-temp" class="text-xl font-black font-mono text-amber-400">0</span>
+              <span class="text-xs text-slate-500">°C</span>
+            </div>
           </div>
         </div>
       </div>
@@ -263,7 +337,7 @@
       document.getElementById('live-clock').innerText = new Date().toTimeString().split(' ')[0] + ' PST';
     }, 1000);
 
-    // Leaflet Map Initialization (Set initial close zoom to level 16)
+    // Leaflet Map Initialization
     const map = L.map('map', { zoomControl: false }).setView([14.5995, 120.9842], 16);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
 
@@ -275,9 +349,17 @@
       badge.className = "flex items-center gap-2 rounded-full bg-emerald-950/80 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-800";
       badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> ONLINE`;
       
-      // Register device with server
       socket.emit('REGISTER_DEVICE', { unit_id: 'DISPATCH_MAIN', role: 'DISPATCHER' });
     });
+
+    // Zero Calibration Signal Handler
+    function calibrateZeroTilt() {
+      socket.emit('DISPATCH_COMMAND', {
+        target_unit: TARGET_UNIT,
+        action: 'CALIBRATE_TILT'
+      });
+      appendChatMessage('VOGE Control', 'Sent $CALIBRATE# signal to ESP32...');
+    }
 
     // --- PUSH-TO-TALK (PTT) HANDLERS ---
     let mediaRecorder = null;
@@ -328,33 +410,20 @@
       }
     }
 
-    // Receive incoming PTT audio from Mobile Unit
+    // Receive incoming PTT audio
     socket.on('PTT_AUDIO_RECEIVE', (data) => {
       let rawAudio = data.audio || data.audio_base64 || '';
+      if (rawAudio.includes('[PTT_AUDIO]:')) rawAudio = rawAudio.split('[PTT_AUDIO]:')[1].trim();
+      if (rawAudio.startsWith('//')) rawAudio = rawAudio.substring(2);
 
-      if (rawAudio.includes('[PTT_AUDIO]:')) {
-        rawAudio = rawAudio.split('[PTT_AUDIO]:')[1].trim();
-      }
-      if (rawAudio.startsWith('//')) {
-        rawAudio = rawAudio.substring(2);
-      }
-
-      let audioSrc = rawAudio;
-      if (!rawAudio.startsWith('data:')) {
-        audioSrc = 'data:audio/aac;base64,' + rawAudio;
-      }
-
+      let audioSrc = rawAudio.startsWith('data:') ? rawAudio : 'data:audio/aac;base64,' + rawAudio;
       const audio = new Audio(audioSrc);
       
       audio.onerror = () => {
-        const fallbackSrc = 'data:audio/webm;base64,' + rawAudio;
-        const fallbackAudio = new Audio(fallbackSrc);
+        const fallbackAudio = new Audio('data:audio/webm;base64,' + rawAudio);
         fallbackAudio.play().catch(e => console.error("PTT Audio Playback Error:", e));
       };
-
-      audio.play().catch(err => {
-        console.warn("Autoplay blocked or decoding error:", err);
-      });
+      audio.play().catch(err => console.warn("Autoplay blocked:", err));
 
       appendChatMessage(data.sender || 'VOGE Rider', "🎙️ [PTT Audio Message Received]");
     });
@@ -415,15 +484,11 @@
     }
 
     socket.on('WEBRTC_ANSWER', async (data) => {
-      if (peerConnection) {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-      }
+      if (peerConnection) await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
     });
 
     socket.on('WEBRTC_ICE_CANDIDATE', async (data) => {
-      if (peerConnection && data.candidate) {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-      }
+      if (peerConnection && data.candidate) await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
     });
 
     function toggleLocalMic() {
@@ -464,10 +529,7 @@
     // ENGINE IMMOBILIZER SWITCH CONTROL
     function toggleVehicleLock(shouldLock) {
       const actionCmd = shouldLock ? 'DISABLE_VEHICLE' : 'ENABLE_VEHICLE';
-      socket.emit('DISPATCH_COMMAND', {
-        target_unit: 'ALL',
-        action: actionCmd
-      });
+      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: actionCmd });
       updateLockStateUI(shouldLock);
     }
 
@@ -495,24 +557,16 @@
     // INCOMING CHAT HANDLER
     socket.on('CHAT_MESSAGE', (data) => {
       const messageText = data.text || data.message || '';
-
       if (messageText.includes('[PTT_AUDIO]:')) {
         let base64Audio = messageText.split('[PTT_AUDIO]:')[1].trim();
-        if (base64Audio.startsWith('//')) {
-          base64Audio = base64Audio.substring(2);
-        }
+        if (base64Audio.startsWith('//')) base64Audio = base64Audio.substring(2);
 
-        let audioSrc = base64Audio.startsWith('data:') 
-          ? base64Audio 
-          : 'data:audio/aac;base64,' + base64Audio;
-
+        let audioSrc = base64Audio.startsWith('data:') ? base64Audio : 'data:audio/aac;base64,' + base64Audio;
         const audio = new Audio(audioSrc);
-
         audio.onerror = () => {
           const fallbackAudio = new Audio('data:audio/webm;base64,' + base64Audio);
           fallbackAudio.play().catch(e => console.error("PTT Chat Audio Fallback Error:", e));
         };
-
         audio.play().catch(err => console.warn("PTT Chat Autoplay blocked:", err));
 
         appendChatMessage(data.sender || 'VOGE Rider', "🎙️ [PTT Audio Message Received]");
@@ -534,14 +588,9 @@
       if (cmd.action === 'ENABLE_VEHICLE' || cmd.action === 'UNLOCK_VEHICLE') updateLockStateUI(false);
     });
 
-    // Web Audio Synthesizer Controls
     function getAudioContext() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
       return audioCtx;
     }
 
@@ -565,35 +614,20 @@
 
     function setSirenState(enable) {
       sirenActive = enable;
-      socket.emit('DISPATCH_COMMAND', {
-        target_unit: 'ALL',
-        action: 'TOGGLE_SIREN',
-        extra: enable ? 'ON' : 'OFF',
-        state: enable
-      });
+      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'TOGGLE_SIREN', extra: enable ? 'ON' : 'OFF', state: enable });
       handleSirenUI(enable);
     }
 
     function setLightsState(enable) {
       lightsActive = enable;
-      socket.emit('DISPATCH_COMMAND', {
-        target_unit: 'ALL',
-        action: 'TOGGLE_LIGHTS',
-        extra: enable ? 'ON' : 'OFF',
-        state: enable
-      });
+      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'TOGGLE_LIGHTS', extra: enable ? 'ON' : 'OFF', state: enable });
       handleLightsUI(enable);
     }
 
     function clearAllOverrides() {
       sirenActive = false;
       lightsActive = false;
-      socket.emit('DISPATCH_COMMAND', {
-        target_unit: 'ALL',
-        action: 'CLEAR_ALL',
-        extra: 'OFF',
-        state: false
-      });
+      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'CLEAR_ALL', extra: 'OFF', state: false });
       handleSirenUI(false);
       handleLightsUI(false);
     }
@@ -612,7 +646,6 @@
           const gain = ctx.createGain();
           sirenOscillator.type = 'sine';
           gain.gain.setValueAtTime(0.2, ctx.currentTime);
-          
           sirenOscillator.frequency.setValueAtTime(600, ctx.currentTime);
           const now = ctx.currentTime;
           for (let i = 0; i < 100; i++) {
@@ -657,14 +690,9 @@
 
     function triggerCamera(facing) {
       appendChatMessage("VOGE Control", `Sent CAMERA_ACTIVATE (${facing}) to unit...`);
-      socket.emit('DISPATCH_COMMAND', {
-        target_unit: 'ALL',
-        action: 'ACTIVATE_CAMERA',
-        facing: facing
-      });
+      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'ACTIVATE_CAMERA', facing: facing });
     }
 
-    // Chat Broadcasting
     function appendChatMessage(sender, text) {
       const chatBox = document.getElementById('chat-messages');
       const msgDiv = document.createElement('div');
@@ -680,35 +708,73 @@
     function sendChatMessage() {
       const input = document.getElementById('chat-input');
       if (input.value.trim() !== '') {
-        socket.emit('CHAT_MESSAGE', {
-          target_unit: 'ALL',
-          sender: 'VOGE Control',
-          text: input.value
-        });
+        socket.emit('CHAT_MESSAGE', { target_unit: 'ALL', sender: 'VOGE Control', text: input.value });
         input.value = '';
       }
     }
 
-    // Live Telemetry Receiver with Auto-Zoom and Auto-Centering
+    // Live Telemetry Receiver with Vehicle Dynamics, Auto-Zoom, and Centering
     socket.on('TELEMETRY_UPDATE', (data) => {
       document.getElementById('rider-speed').innerText = Number(data.speed || 0).toFixed(1);
       document.getElementById('rider-battery').innerText = Math.round(data.battery || 0);
-      document.getElementById('rider-coords').innerText = `${Number(data.lat).toFixed(4)}, ${Number(data.lng).toFixed(4)}`;
+      document.getElementById('rider-coords').innerText = `${Number(data.lat || 0).toFixed(4)}, ${Number(data.lng || 0).toFixed(4)}`;
+
+      // Parse Lean, Pitch, RPM & Temp
+      let leanAngle = 0.0, pitchAngle = 0.0, rpmVal = 0, tempVal = 0;
+      if (data.telemetry) {
+        leanAngle = Number(data.telemetry.lean_angle_deg || 0);
+        pitchAngle = Number(data.telemetry.pitch_deg || 0);
+        rpmVal = Math.round(data.telemetry.engine_rpm || 0);
+        tempVal = Math.round(data.telemetry.coolant_temp_c || 0);
+      } else {
+        if (data.lean_angle_deg !== undefined) leanAngle = Number(data.lean_angle_deg);
+        if (data.pitch_deg !== undefined) pitchAngle = Number(data.pitch_deg);
+        if (data.engine_rpm !== undefined) rpmVal = Math.round(data.engine_rpm);
+        if (data.coolant_temp_c !== undefined) tempVal = Math.round(data.coolant_temp_c);
+      }
+
+      // Update Text Displays
+      document.getElementById('rider-lean').innerText = leanAngle.toFixed(1);
+      document.getElementById('rider-pitch').innerText = pitchAngle.toFixed(1);
+      document.getElementById('rider-rpm').innerText = rpmVal;
+      document.getElementById('rider-temp').innerText = tempVal;
+
+      // Rotate SVG Bike Indicator & Update Direction Label
+      const bikeIcon = document.getElementById('lean-bike-icon');
+      const dirLabel = document.getElementById('rider-lean-dir');
+
+      if (bikeIcon) {
+        // Clamp rotation visual range to -45deg ... +45deg
+        const clampedAngle = Math.max(-45, Math.min(45, leanAngle));
+        bikeIcon.style.transform = `rotate(${clampedAngle}deg)`;
+      }
+
+      if (dirLabel) {
+        if (leanAngle > 3.0) {
+          dirLabel.innerText = `LEANING RIGHT (${Math.abs(leanAngle).toFixed(1)}°)`;
+          dirLabel.className = "text-[10px] font-extrabold uppercase text-cyan-400";
+        } else if (leanAngle < -3.0) {
+          dirLabel.innerText = `LEANING LEFT (${Math.abs(leanAngle).toFixed(1)}°)`;
+          dirLabel.className = "text-[10px] font-extrabold uppercase text-cyan-400";
+        } else {
+          dirLabel.innerText = "UPRIGHT (0.0°)";
+          dirLabel.className = "text-[10px] font-extrabold uppercase text-emerald-400";
+        }
+      }
 
       if (typeof data.is_locked !== 'undefined') {
         updateLockStateUI(data.is_locked);
       }
 
-      const targetLatLng = [data.lat, data.lng];
-
-      if (!markers[data.unit_id]) {
-        markers[data.unit_id] = L.marker(targetLatLng).addTo(map);
-      } else {
-        markers[data.unit_id].setLatLng(targetLatLng);
+      if (data.lat && data.lng) {
+        const targetLatLng = [data.lat, data.lng];
+        if (!markers[data.unit_id]) {
+          markers[data.unit_id] = L.marker(targetLatLng).addTo(map);
+        } else {
+          markers[data.unit_id].setLatLng(targetLatLng);
+        }
+        map.flyTo(targetLatLng, 16, { animate: true, duration: 1 });
       }
-
-      // Auto center map with animated transition and zoom level 16
-      map.flyTo(targetLatLng, 16, { animate: true, duration: 1 });
     });
   </script>
 </body>
