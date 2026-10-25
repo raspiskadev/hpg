@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VOGE One Telemetry Tracking</title>
+  <title>VOGE One Telemetry & Tactical Dashboard</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -14,28 +14,13 @@
     ::-webkit-scrollbar-track { background: #0f172a; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
 
-    /* Strobe Lights Simulation Layer */
+    /* Strobe Overlay */
     @keyframes police-strobe {
       0%, 49% { background-color: rgba(239, 68, 68, 0.25); }
       50%, 100% { background-color: rgba(59, 130, 246, 0.25); }
     }
-    .active-strobe {
-      animation: police-strobe 0.3s infinite;
-      pointer-events: none;
-    }
-
-    /* Active PTT Transmit Pulse Effect */
-    .ptt-active {
-      background-color: #ef4444 !important;
-      color: #ffffff !important;
-      animation: pulse 1s infinite;
-    }
-
-    /* Smooth transition for bike lean indicator needle */
-    #lean-bike-icon {
-      transform-origin: 50% 80%;
-      transition: transform 0.2s ease-out;
-    }
+    .active-strobe { animation: police-strobe 0.3s infinite; pointer-events: none; }
+    .ptt-active { background-color: #ef4444 !important; color: #ffffff !important; animation: pulse 1s infinite; }
   </style>
 </head>
 <body class="bg-slate-900 font-sans text-slate-100 antialiased h-screen flex flex-col overflow-hidden">
@@ -43,7 +28,7 @@
   <!-- EMERGENCY LIGHTS OVERLAY LAYER -->
   <div id="strobe-overlay" class="fixed inset-0 z-40 hidden"></div>
 
-  <!-- WEBRTC VOICE & VIDEO CALL OVERLAY MODAL -->
+  <!-- WEBRTC VOICE & VIDEO CALL MODAL -->
   <div id="webrtc-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-2xl overflow-hidden flex flex-col">
       <div class="bg-slate-950 text-white p-4 flex justify-between items-center border-b border-slate-800">
@@ -53,15 +38,11 @@
         </div>
         <button onclick="endCall()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
-      
-      <!-- Video Streams Container -->
       <div class="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
         <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
         <video id="local-video" autoplay playsinline muted class="absolute bottom-4 right-4 w-32 aspect-video bg-slate-800 rounded-lg border-2 border-slate-600 object-cover shadow-lg"></video>
         <audio id="remote-audio" autoplay></audio>
       </div>
-
-      <!-- Call Action Controls -->
       <div class="p-4 bg-slate-900 flex items-center justify-center gap-4 border-t border-slate-800">
         <button id="btn-toggle-mic" onclick="toggleLocalMic()" class="h-12 w-12 rounded-full bg-slate-800 text-slate-200 flex items-center justify-center hover:bg-slate-700 transition">
           <i id="mic-icon" class="fa-solid fa-microphone"></i>
@@ -78,7 +59,7 @@
     <div class="flex items-center gap-4">
       <div class="border-l border-slate-800 pl-4">
         <span class="text-base font-black tracking-wider text-white block leading-none">VOGE ONE</span>
-        <span class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">Smart Fleet Command Console</span>
+        <span class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">Smart Fleet & Rider Command Console</span>
       </div>
     </div>
 
@@ -99,7 +80,7 @@
     <!-- LEFT SIDEBAR -->
     <aside class="w-96 border-r border-slate-800 bg-slate-950 flex flex-col h-full overflow-y-auto shrink-0 shadow-xl z-10 p-4 space-y-4">
       
-      <!-- VOGE RIDER PROFILE CARD -->
+      <!-- VOGE RIDER & GPS TELEMETRY CARD -->
       <div class="p-3.5 bg-slate-900 rounded-xl border border-slate-800 shadow-inner">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-3">
@@ -114,6 +95,7 @@
           <span id="rider-status" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE RIDE</span>
         </div>
 
+        <!-- Speed & Heading (Degrees / Cardinal direction) -->
         <div class="grid grid-cols-2 gap-2 mt-3">
           <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
             <span class="text-[10px] font-bold uppercase text-slate-500 block">Cruising Speed</span>
@@ -123,54 +105,43 @@
             </div>
           </div>
           <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-            <span class="text-[10px] font-bold uppercase text-slate-500 block">Battery / Power</span>
+            <span class="text-[10px] font-bold uppercase text-slate-500 block">Compass Heading</span>
             <div class="flex items-baseline gap-1">
-              <span id="rider-battery" class="text-xl font-black font-mono text-emerald-400">0</span>
-              <span class="text-xs text-slate-500">%</span>
+              <span id="rider-heading" class="text-xl font-black font-mono text-emerald-400">0°</span>
+              <span id="rider-cardinal" class="text-xs text-slate-400 font-bold uppercase">N</span>
             </div>
           </div>
         </div>
 
+        <!-- Precise GPS Coordinates -->
         <div class="mt-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs font-mono flex justify-between items-center">
           <div>
-            <span class="text-[9px] text-slate-500 font-sans block font-bold uppercase">GPS Position</span>
-            <span id="rider-coords" class="font-bold text-slate-300">14.5995, 120.9842</span>
+            <span class="text-[9px] text-slate-500 font-sans block font-bold uppercase">Exact GPS Position</span>
+            <span id="rider-coords" class="font-bold text-slate-300">14.59950, 120.98420</span>
           </div>
+          <span class="text-[10px] text-cyan-400 font-sans font-bold">3s Refresh</span>
         </div>
       </div>
 
-      <!-- VEHICLE DYNAMICS & TILT TELEMETRY CARD WITH VISUAL GAUGE -->
+      <!-- 3D MOTORCYCLE ANGLE VISUALIZATION CONTAINER -->
       <div class="p-3.5 bg-slate-900 rounded-xl border border-slate-800 shadow-inner space-y-3">
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2">
-            <i class="fa-solid fa-compass text-cyan-400"></i> Vehicle Dynamics & Engine
+            <i class="fa-solid fa-cube text-cyan-400"></i> 3D Motorcycle Tilt Dynamics
           </span>
           <button onclick="calibrateZeroTilt()" class="px-2 py-1 bg-cyan-950 hover:bg-cyan-900 text-cyan-400 border border-cyan-800 rounded text-[10px] font-bold transition">
             <i class="fa-solid fa-crosshairs"></i> Calibrate 0°
           </button>
         </div>
 
-        <!-- Dynamic Lean Angle SVG Visual Meter -->
-        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 flex flex-col items-center justify-center relative overflow-hidden">
-          <span class="text-[9px] font-bold text-slate-500 uppercase absolute top-2 left-2">Real-Time Lean Arc</span>
-          <svg class="w-36 h-20" viewBox="0 0 100 50">
-            <!-- Arc Horizon Line -->
-            <path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="#334155" stroke-width="3" stroke-dasharray="2 2" />
-            <!-- Center Horizon Marker -->
-            <line x1="50" y1="5" x2="50" y2="12" stroke="#00e676" stroke-width="2" />
-            <!-- Dynamic Tilting Bike Line Needle -->
-            <g id="lean-bike-icon">
-              <line x1="50" y1="45" x2="50" y2="12" stroke="#00e676" stroke-width="4" stroke-linecap="round" />
-              <circle cx="50" cy="12" r="3" fill="#00e676" />
-            </g>
-          </svg>
-          <div class="text-center mt-1">
-            <span id="rider-lean-dir" class="text-[10px] font-extrabold uppercase text-slate-400">UPRIGHT</span>
-          </div>
+        <!-- WebGL 3D Canvas -->
+        <div class="bg-slate-950 rounded-lg border border-slate-800 relative overflow-hidden flex items-center justify-center">
+          <div id="threejs-canvas-container" class="w-full h-44"></div>
+          <span class="text-[9px] font-bold text-slate-500 uppercase absolute top-2 left-2">Real-Time Pitch & Roll</span>
         </div>
 
+        <!-- Angle Readouts -->
         <div class="grid grid-cols-2 gap-2">
-          <!-- Lean Angle (Roll) -->
           <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
             <span class="text-[10px] font-bold uppercase text-slate-500 block">Lean Angle (Roll)</span>
             <div class="flex items-baseline gap-1">
@@ -178,31 +149,11 @@
               <span class="text-xs text-slate-500">°</span>
             </div>
           </div>
-
-          <!-- Pitch Angle -->
           <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
             <span class="text-[10px] font-bold uppercase text-slate-500 block">Pitch Angle</span>
             <div class="flex items-baseline gap-1">
               <span id="rider-pitch" class="text-xl font-black font-mono text-cyan-400">0.0</span>
               <span class="text-xs text-slate-500">°</span>
-            </div>
-          </div>
-
-          <!-- Engine RPM -->
-          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-            <span class="text-[10px] font-bold uppercase text-slate-500 block">Engine Speed</span>
-            <div class="flex items-baseline gap-1">
-              <span id="rider-rpm" class="text-xl font-black font-mono text-emerald-400">0</span>
-              <span class="text-xs text-slate-500">RPM</span>
-            </div>
-          </div>
-
-          <!-- Coolant Temp -->
-          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-            <span class="text-[10px] font-bold uppercase text-slate-500 block">Coolant Temp</span>
-            <div class="flex items-baseline gap-1">
-              <span id="rider-temp" class="text-xl font-black font-mono text-amber-400">0</span>
-              <span class="text-xs text-slate-500">°C</span>
             </div>
           </div>
         </div>
@@ -221,30 +172,14 @@
           </button>
         </div>
 
-        <!-- Push-To-Talk Button -->
         <button id="btn-ptt" onmousedown="startPTT()" onmouseup="stopPTT()" onmouseleave="stopPTT()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2 border border-slate-700 shadow transition select-none cursor-pointer">
           <i class="fa-solid fa-walkie-talkie text-cyan-400"></i> Push-To-Talk Intercom
         </button>
       </div>
 
-      <!-- CAMERA FEEDS CONTROL -->
-      <div>
-        <span class="block text-[11px] font-bold uppercase text-slate-500 mb-2">Dashcam Feeds</span>
-        <div class="grid grid-cols-2 gap-2">
-          <button onclick="triggerCamera('FRONT')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-900 border border-slate-800 hover:border-cyan-500 hover:bg-slate-850 text-slate-300 text-xs font-bold rounded-lg transition">
-            <i class="fa-solid fa-camera text-cyan-400"></i> Front Cam
-          </button>
-          <button onclick="triggerCamera('BACK')" class="flex items-center justify-center gap-2 p-2.5 bg-slate-900 border border-slate-800 hover:border-cyan-500 hover:bg-slate-850 text-slate-300 text-xs font-bold rounded-lg transition">
-            <i class="fa-solid fa-video text-cyan-400"></i> Rear Cam
-          </button>
-        </div>
-      </div>
-
-      <!-- REMOTE AUDIO / LIGHT / ENGINE TELEMATICS OVERRIDES -->
+      <!-- VEHICLE OVERRIDES & IGNITION SECURITY -->
       <div>
         <span class="block text-[11px] font-bold uppercase text-slate-500 mb-2">Vehicle Overrides & Sound</span>
-        
-        <!-- ENGINE IMMOBILIZER / LOCK SWITCH CARD -->
         <div class="p-3 mb-2 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between">
           <div class="flex items-center gap-2.5">
             <div id="lock-icon-bg" class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-950 border border-emerald-800 text-emerald-400">
@@ -255,44 +190,10 @@
               <span id="lock-status-text" class="block text-[10px] font-extrabold text-emerald-400 uppercase">UNLOCKED</span>
             </div>
           </div>
-
           <label class="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" id="toggle-vehicle-lock" onchange="toggleVehicleLock(this.checked)" class="sr-only peer">
             <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600 border border-slate-700"></div>
           </label>
-        </div>
-
-        <!-- Siren, Lights, Horn Controls -->
-        <div class="space-y-2">
-          <!-- Horn Control Button -->
-          <button onclick="triggerHorn()" class="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg hover:border-amber-500 hover:bg-slate-850 text-slate-300 text-xs font-bold flex items-center justify-center gap-2 transition">
-            <i class="fa-solid fa-bullhorn text-amber-500"></i> Sound Horn
-          </button>
-
-          <!-- Siren ON / OFF Group -->
-          <div class="grid grid-cols-2 gap-2">
-            <button id="btn-siren-on" onclick="setSirenState(true)" class="p-2 bg-slate-900 border border-slate-800 rounded-lg hover:border-red-500 hover:bg-slate-850 text-red-400 text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <i class="fa-solid fa-triangle-exclamation"></i> Siren ON
-            </button>
-            <button id="btn-siren-off" onclick="setSirenState(false)" class="p-2 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-600 hover:bg-slate-850 text-slate-400 text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <i class="fa-solid fa-volume-xmark"></i> Siren OFF
-            </button>
-          </div>
-
-          <!-- Strobe Lights ON / OFF Group -->
-          <div class="grid grid-cols-2 gap-2">
-            <button id="btn-lights-on" onclick="setLightsState(true)" class="p-2 bg-slate-900 border border-slate-800 rounded-lg hover:border-cyan-500 hover:bg-slate-850 text-cyan-400 text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <i class="fa-solid fa-lightbulb"></i> Lights ON
-            </button>
-            <button id="btn-lights-off" onclick="setLightsState(false)" class="p-2 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-600 hover:bg-slate-850 text-slate-400 text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <i class="fa-solid fa-power-off"></i> Lights OFF
-            </button>
-          </div>
-
-          <!-- All Clear / Master Stop Button -->
-          <button onclick="clearAllOverrides()" class="w-full py-2 bg-slate-800 hover:bg-slate-750 text-white text-xs font-extrabold uppercase tracking-wider rounded-lg flex items-center justify-center gap-2 shadow border border-slate-700 transition">
-            <i class="fa-solid fa-shield-cat text-emerald-400"></i> Clear All Alerts
-          </button>
         </div>
       </div>
 
@@ -324,15 +225,16 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
   <script>
-    const TARGET_UNIT = "VOGE-500AC-01"; // Default target mobile unit
+    const TARGET_UNIT = "VOGE-500AC-01";
     let sirenActive = false;
     let lightsActive = false;
     let audioCtx = null;
     let sirenOscillator = null;
 
-    // Clock
+    // System Clock
     setInterval(() => {
       document.getElementById('live-clock').innerText = new Date().toTimeString().split(' ')[0] + ' PST';
     }, 1000);
@@ -348,349 +250,183 @@
       const badge = document.getElementById('status-badge');
       badge.className = "flex items-center gap-2 rounded-full bg-emerald-950/80 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-800";
       badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> ONLINE`;
-      
       socket.emit('REGISTER_DEVICE', { unit_id: 'DISPATCH_MAIN', role: 'DISPATCHER' });
     });
 
-    // Zero Calibration Signal Handler
+    // Zero-Calibration Trigger
     function calibrateZeroTilt() {
-      socket.emit('DISPATCH_COMMAND', {
-        target_unit: TARGET_UNIT,
-        action: 'CALIBRATE_TILT'
-      });
-      appendChatMessage('VOGE Control', 'Sent $CALIBRATE# signal to ESP32...');
+      socket.emit('DISPATCH_COMMAND', { target_unit: TARGET_UNIT, action: 'CALIBRATE_TILT' });
+      appendChatMessage('VOGE Control', 'Sent zero-point calibration request ($CALIBRATE#) to ESP32...');
     }
 
-    // --- PUSH-TO-TALK (PTT) HANDLERS ---
-    let mediaRecorder = null;
-    let audioChunks = [];
+    // =========================================================================
+    //  THREE.JS 3D MOTORCYCLE MODEL ENGINE
+    // =========================================================================
+    let scene, camera, renderer, motorcycleGroup;
 
+    function init3DMotorcycle() {
+      const container = document.getElementById('threejs-canvas-container');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+      camera.position.set(3, 2, 4);
+      camera.lookAt(0, 0, 0);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      container.appendChild(renderer.domElement);
+
+      // Ambient & Directional Lighting
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0x00e676, 0.8);
+      dirLight.position.set(5, 10, 7);
+      scene.add(dirLight);
+
+      // Build Motorcycle Geometry Group
+      motorcycleGroup = new THREE.Group();
+
+      // Main Bike Frame (Cyan Metallic Box)
+      const bodyGeo = new THREE.BoxGeometry(1.6, 0.5, 0.4);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x00bcd4, metalness: 0.6, roughness: 0.3 });
+      const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+      motorcycleGroup.add(bodyMesh);
+
+      // Front Wheel
+      const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.15, 24);
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+      const frontWheel = new THREE.Mesh(wheelGeo, wheelMat);
+      frontWheel.rotation.z = Math.PI / 2;
+      frontWheel.position.set(0.7, -0.2, 0);
+      motorcycleGroup.add(frontWheel);
+
+      // Rear Wheel
+      const rearWheel = new THREE.Mesh(wheelGeo, wheelMat);
+      rearWheel.rotation.z = Math.PI / 2;
+      rearWheel.position.set(-0.7, -0.2, 0);
+      motorcycleGroup.add(rearWheel);
+
+      // Handlebars
+      const barGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.8, 12);
+      const barMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      const handlebars = new THREE.Mesh(barGeo, barMat);
+      handlebars.rotation.x = Math.PI / 2;
+      handlebars.position.set(0.5, 0.4, 0);
+      motorcycleGroup.add(handlebars);
+
+      scene.add(motorcycleGroup);
+
+      // Render Loop
+      function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+      }
+      animate();
+    }
+
+    // Initialize 3D Scene on load
+    window.addEventListener('load', init3DMotorcycle);
+
+    // =========================================================================
+    //  LIVE TELEMETRY RECEIVER & 3-SECOND GPS UPDATER
+    // =========================================================================
+    let lastGpsUpdateTime = 0;
+
+    socket.on('TELEMETRY_UPDATE', (data) => {
+      const now = Date.now();
+
+      // Extract Roll & Pitch
+      let leanAngle = 0.0, pitchAngle = 0.0;
+      if (data.telemetry) {
+        leanAngle = Number(data.telemetry.lean_angle_deg || 0);
+        pitchAngle = Number(data.telemetry.pitch_deg || 0);
+      } else {
+        if (data.lean_angle_deg !== undefined) leanAngle = Number(data.lean_angle_deg);
+        if (data.pitch_deg !== undefined) pitchAngle = Number(data.pitch_deg);
+      }
+
+      // Update Text Displays
+      document.getElementById('rider-lean').innerText = leanAngle.toFixed(1);
+      document.getElementById('rider-pitch').innerText = pitchAngle.toFixed(1);
+
+      // Update 3D Model Rotation in Real Time
+      if (motorcycleGroup) {
+        // Roll around X axis, Pitch around Z axis (converted to Radians)
+        motorcycleGroup.rotation.x = (leanAngle * Math.PI) / 180.0;
+        motorcycleGroup.rotation.z = (-pitchAngle * Math.PI) / 180.0;
+      }
+
+      // Throttle GPS and Speed UI updates to every 3 Seconds (3000 ms)
+      if (now - lastGpsUpdateTime >= 3000) {
+        lastGpsUpdateTime = now;
+
+        const lat = Number(data.lat || (data.gps ? data.gps.latitude : 0) || 0);
+        const lng = Number(data.lng || (data.gps ? data.gps.longitude : 0) || 0);
+        const speed = Number(data.speed || (data.gps ? data.gps.speed_kmh : 0) || 0);
+        const heading = Number(data.heading || data.bearing || (data.gps ? data.gps.heading : 0) || 0);
+
+        document.getElementById('rider-speed').innerText = speed.toFixed(1);
+        document.getElementById('rider-heading').innerText = `${Math.round(heading)}°`;
+        document.getElementById('rider-cardinal').innerText = getCardinalDirection(heading);
+        document.getElementById('rider-coords').innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
+        if (lat && lng) {
+          const targetLatLng = [lat, lng];
+
+          if (!markers[data.unit_id]) {
+            markers[data.unit_id] = L.marker(targetLatLng).addTo(map);
+          } else {
+            markers[data.unit_id].setLatLng(targetLatLng);
+          }
+
+          // Smooth animated transition to new location every 3 seconds
+          map.flyTo(targetLatLng, 16, { animate: true, duration: 1.5 });
+        }
+      }
+    });
+
+    // Helper: Calculate Cardinal Direction from compass degrees
+    function getCardinalDirection(angle) {
+      const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      const index = Math.round(((angle %= 360) < 0 ? angle + 360 : angle) / 45) % 8;
+      return directions[index];
+    }
+
+    // --- PTT, CHAT & WEBRTC HANDLERS ---
+    let mediaRecorder = null, audioChunks = [];
     async function startPTT() {
       const btn = document.getElementById('btn-ptt');
       btn.classList.add('ptt-active');
       btn.innerHTML = `<i class="fa-solid fa-microphone animate-bounce"></i> TRANSMITTING...`;
-
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
-
-        mediaRecorder.ondataavailable = event => {
-          if (event.data.size > 0) audioChunks.push(event.data);
-        };
-
+        mediaRecorder.ondataavailable = event => { if (event.data.size > 0) audioChunks.push(event.data); };
         mediaRecorder.onstop = () => {
           const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
           const reader = new FileReader();
           reader.readAsDataURL(audioBlob);
-          reader.onloadend = () => {
-            socket.emit('PTT_AUDIO_TRANSMIT', {
-              target_unit: TARGET_UNIT,
-              sender: 'VOGE Control',
-              audio: reader.result
-            });
-          };
+          reader.onloadend = () => { socket.emit('PTT_AUDIO_TRANSMIT', { target_unit: TARGET_UNIT, sender: 'VOGE Control', audio: reader.result }); };
           stream.getTracks().forEach(track => track.stop());
         };
-
         mediaRecorder.start();
-      } catch (err) {
-        console.error("PTT Microphone access error:", err);
-        stopPTT();
-      }
+      } catch (err) { stopPTT(); }
     }
 
     function stopPTT() {
       const btn = document.getElementById('btn-ptt');
       btn.classList.remove('ptt-active');
       btn.innerHTML = `<i class="fa-solid fa-walkie-talkie text-cyan-400"></i> Push-To-Talk Intercom`;
-
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-      }
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
     }
 
-    // Receive incoming PTT audio
-    socket.on('PTT_AUDIO_RECEIVE', (data) => {
-      let rawAudio = data.audio || data.audio_base64 || '';
-      if (rawAudio.includes('[PTT_AUDIO]:')) rawAudio = rawAudio.split('[PTT_AUDIO]:')[1].trim();
-      if (rawAudio.startsWith('//')) rawAudio = rawAudio.substring(2);
-
-      let audioSrc = rawAudio.startsWith('data:') ? rawAudio : 'data:audio/aac;base64,' + rawAudio;
-      const audio = new Audio(audioSrc);
-      
-      audio.onerror = () => {
-        const fallbackAudio = new Audio('data:audio/webm;base64,' + rawAudio);
-        fallbackAudio.play().catch(e => console.error("PTT Audio Playback Error:", e));
-      };
-      audio.play().catch(err => console.warn("Autoplay blocked:", err));
-
-      appendChatMessage(data.sender || 'VOGE Rider', "🎙️ [PTT Audio Message Received]");
-    });
-
-    // --- WEBRTC VOICE & VIDEO CALL HANDLERS ---
-    let peerConnection = null;
-    let localStream = null;
-    let micMuted = false;
-    const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-
-    async function startCall(type) {
-      document.getElementById('webrtc-modal').classList.remove('hidden');
-      document.getElementById('call-modal-title').innerText = `${type} Call - ${TARGET_UNIT}`;
-
-      peerConnection = new RTCPeerConnection(rtcConfig);
-
-      try {
-        const constraints = { audio: true, video: type === 'VIDEO' };
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-        const localVidEl = document.getElementById('local-video');
-        if (type === 'VIDEO') {
-          localVidEl.classList.remove('hidden');
-          localVidEl.srcObject = localStream;
-        } else {
-          localVidEl.classList.add('hidden');
-        }
-
-        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-        peerConnection.ontrack = (event) => {
-          const remoteVid = document.getElementById('remote-video');
-          const remoteAud = document.getElementById('remote-audio');
-
-          if (type === 'VIDEO') {
-            remoteVid.srcObject = event.streams[0];
-            remoteVid.play().catch(err => console.warn("Remote video playback prevented:", err));
-          } else {
-            remoteAud.srcObject = event.streams[0];
-            remoteAud.play().catch(err => console.warn("Remote audio playback prevented:", err));
-          }
-        };
-
-        peerConnection.onicecandidate = (event) => {
-          if (event.candidate) {
-            socket.emit('WEBRTC_ICE_CANDIDATE', { target_unit: TARGET_UNIT, candidate: event.candidate });
-          }
-        };
-
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        socket.emit('WEBRTC_OFFER', { target_unit: TARGET_UNIT, offer: offer, type: type });
-
-      } catch (err) {
-        console.error("Call Setup Error:", err);
-        endCall();
-      }
-    }
-
-    socket.on('WEBRTC_ANSWER', async (data) => {
-      if (peerConnection) await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-    });
-
-    socket.on('WEBRTC_ICE_CANDIDATE', async (data) => {
-      if (peerConnection && data.candidate) await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-    });
-
-    function toggleLocalMic() {
-      if (localStream) {
-        const audioTrack = localStream.getAudioTracks()[0];
-        if (audioTrack) {
-          micMuted = !micMuted;
-          audioTrack.enabled = !micMuted;
-          const micIcon = document.getElementById('mic-icon');
-          const btn = document.getElementById('btn-toggle-mic');
-          
-          if (micMuted) {
-            micIcon.className = "fa-solid fa-microphone-slash text-red-500";
-            btn.classList.add('bg-red-950/50');
-          } else {
-            micIcon.className = "fa-solid fa-microphone";
-            btn.classList.remove('bg-red-950/50');
-          }
-        }
-      }
-    }
-
-    function endCall() {
-      if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-      }
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-      document.getElementById('webrtc-modal').classList.add('hidden');
-      socket.emit('WEBRTC_HANGUP', { target_unit: TARGET_UNIT });
-    }
-
-    socket.on('WEBRTC_HANGUP', () => { endCall(); });
-
-    // ENGINE IMMOBILIZER SWITCH CONTROL
     function toggleVehicleLock(shouldLock) {
-      const actionCmd = shouldLock ? 'DISABLE_VEHICLE' : 'ENABLE_VEHICLE';
-      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: actionCmd });
-      updateLockStateUI(shouldLock);
-    }
-
-    function updateLockStateUI(isLocked) {
-      const lockToggle = document.getElementById('toggle-vehicle-lock');
-      const statusText = document.getElementById('lock-status-text');
-      const iconBg = document.getElementById('lock-icon-bg');
-      const icon = document.getElementById('lock-icon');
-
-      lockToggle.checked = isLocked;
-
-      if (isLocked) {
-        statusText.innerText = "IMMOBILIZED";
-        statusText.className = "block text-[10px] font-extrabold text-red-500 uppercase";
-        iconBg.className = "flex h-8 w-8 items-center justify-center rounded-lg bg-red-950 border border-red-800 text-red-400";
-        icon.className = "fa-solid fa-lock text-xs";
-      } else {
-        statusText.innerText = "UNLOCKED";
-        statusText.className = "block text-[10px] font-extrabold text-emerald-400 uppercase";
-        iconBg.className = "flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-950 border border-emerald-800 text-emerald-400";
-        icon.className = "fa-solid fa-lock-open text-xs";
-      }
-    }
-
-    // INCOMING CHAT HANDLER
-    socket.on('CHAT_MESSAGE', (data) => {
-      const messageText = data.text || data.message || '';
-      if (messageText.includes('[PTT_AUDIO]:')) {
-        let base64Audio = messageText.split('[PTT_AUDIO]:')[1].trim();
-        if (base64Audio.startsWith('//')) base64Audio = base64Audio.substring(2);
-
-        let audioSrc = base64Audio.startsWith('data:') ? base64Audio : 'data:audio/aac;base64,' + base64Audio;
-        const audio = new Audio(audioSrc);
-        audio.onerror = () => {
-          const fallbackAudio = new Audio('data:audio/webm;base64,' + base64Audio);
-          fallbackAudio.play().catch(e => console.error("PTT Chat Audio Fallback Error:", e));
-        };
-        audio.play().catch(err => console.warn("PTT Chat Autoplay blocked:", err));
-
-        appendChatMessage(data.sender || 'VOGE Rider', "🎙️ [PTT Audio Message Received]");
-      } else {
-        appendChatMessage(data.sender || 'VOGE Rider', messageText);
-      }
-    });
-
-    // INCOMING OVERRIDE EXECUTIONS
-    socket.on('EXECUTE_OVERRIDE', (cmd) => {
-      if (cmd.action === 'HORN') playHornSound();
-      if (cmd.action === 'TOGGLE_SIREN' || cmd.action === 'SIREN') handleSirenUI(cmd.state === true || cmd.extra === 'ON' || cmd.extra === 'TRUE');
-      if (cmd.action === 'TOGGLE_LIGHTS' || cmd.action === 'LIGHTS') handleLightsUI(cmd.state === true || cmd.extra === 'ON' || cmd.extra === 'TRUE');
-      if (cmd.action === 'CLEAR_ALL' || cmd.action === 'STOP_ALL') {
-        handleSirenUI(false);
-        handleLightsUI(false);
-      }
-      if (cmd.action === 'DISABLE_VEHICLE' || cmd.action === 'LOCK_VEHICLE') updateLockStateUI(true);
-      if (cmd.action === 'ENABLE_VEHICLE' || cmd.action === 'UNLOCK_VEHICLE') updateLockStateUI(false);
-    });
-
-    function getAudioContext() {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      return audioCtx;
-    }
-
-    function triggerHorn() {
-      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'HORN' });
-    }
-
-    function playHornSound() {
-      const ctx = getAudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(420, ctx.currentTime);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.6);
-    }
-
-    function setSirenState(enable) {
-      sirenActive = enable;
-      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'TOGGLE_SIREN', extra: enable ? 'ON' : 'OFF', state: enable });
-      handleSirenUI(enable);
-    }
-
-    function setLightsState(enable) {
-      lightsActive = enable;
-      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'TOGGLE_LIGHTS', extra: enable ? 'ON' : 'OFF', state: enable });
-      handleLightsUI(enable);
-    }
-
-    function clearAllOverrides() {
-      sirenActive = false;
-      lightsActive = false;
-      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'CLEAR_ALL', extra: 'OFF', state: false });
-      handleSirenUI(false);
-      handleLightsUI(false);
-    }
-
-    function handleSirenUI(active) {
-      sirenActive = active;
-      const ctx = getAudioContext();
-      const btnOn = document.getElementById('btn-siren-on');
-
-      if (sirenActive) {
-        btnOn.classList.add('bg-red-600', 'text-white', 'border-red-600');
-        btnOn.classList.remove('bg-slate-900', 'text-red-400');
-
-        if (!sirenOscillator) {
-          sirenOscillator = ctx.createOscillator();
-          const gain = ctx.createGain();
-          sirenOscillator.type = 'sine';
-          gain.gain.setValueAtTime(0.2, ctx.currentTime);
-          sirenOscillator.frequency.setValueAtTime(600, ctx.currentTime);
-          const now = ctx.currentTime;
-          for (let i = 0; i < 100; i++) {
-            sirenOscillator.frequency.linearRampToValueAtTime(900, now + i * 0.8 + 0.4);
-            sirenOscillator.frequency.linearRampToValueAtTime(600, now + i * 0.8 + 0.8);
-          }
-          sirenOscillator.connect(gain);
-          gain.connect(ctx.destination);
-          sirenOscillator.start();
-        }
-      } else {
-        btnOn.classList.remove('bg-red-600', 'text-white', 'border-red-600');
-        btnOn.classList.add('bg-slate-900', 'text-red-400');
-
-        if (sirenOscillator) {
-          try {
-            sirenOscillator.stop();
-            sirenOscillator.disconnect();
-          } catch(e) {}
-          sirenOscillator = null;
-        }
-      }
-    }
-
-    function handleLightsUI(active) {
-      lightsActive = active;
-      const overlay = document.getElementById('strobe-overlay');
-      const btnOn = document.getElementById('btn-lights-on');
-
-      if (lightsActive) {
-        overlay.classList.remove('hidden');
-        overlay.classList.add('active-strobe');
-        btnOn.classList.add('bg-cyan-600', 'text-white', 'border-cyan-600');
-        btnOn.classList.remove('bg-slate-900', 'text-cyan-400');
-      } else {
-        overlay.classList.add('hidden');
-        overlay.classList.remove('active-strobe');
-        btnOn.classList.remove('bg-cyan-600', 'text-white', 'border-cyan-600');
-        btnOn.classList.add('bg-slate-900', 'text-cyan-400');
-      }
-    }
-
-    function triggerCamera(facing) {
-      appendChatMessage("VOGE Control", `Sent CAMERA_ACTIVATE (${facing}) to unit...`);
-      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: 'ACTIVATE_CAMERA', facing: facing });
+      socket.emit('DISPATCH_COMMAND', { target_unit: 'ALL', action: shouldLock ? 'DISABLE_VEHICLE' : 'ENABLE_VEHICLE' });
     }
 
     function appendChatMessage(sender, text) {
@@ -702,78 +438,11 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    document.getElementById('btn-send-chat').addEventListener('click', sendChatMessage);
-    document.getElementById('chat-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChatMessage(); });
-
-    function sendChatMessage() {
+    document.getElementById('btn-send-chat').addEventListener('click', () => {
       const input = document.getElementById('chat-input');
       if (input.value.trim() !== '') {
         socket.emit('CHAT_MESSAGE', { target_unit: 'ALL', sender: 'VOGE Control', text: input.value });
         input.value = '';
-      }
-    }
-
-    // Live Telemetry Receiver with Vehicle Dynamics, Auto-Zoom, and Centering
-    socket.on('TELEMETRY_UPDATE', (data) => {
-      document.getElementById('rider-speed').innerText = Number(data.speed || 0).toFixed(1);
-      document.getElementById('rider-battery').innerText = Math.round(data.battery || 0);
-      document.getElementById('rider-coords').innerText = `${Number(data.lat || 0).toFixed(4)}, ${Number(data.lng || 0).toFixed(4)}`;
-
-      // Parse Lean, Pitch, RPM & Temp
-      let leanAngle = 0.0, pitchAngle = 0.0, rpmVal = 0, tempVal = 0;
-      if (data.telemetry) {
-        leanAngle = Number(data.telemetry.lean_angle_deg || 0);
-        pitchAngle = Number(data.telemetry.pitch_deg || 0);
-        rpmVal = Math.round(data.telemetry.engine_rpm || 0);
-        tempVal = Math.round(data.telemetry.coolant_temp_c || 0);
-      } else {
-        if (data.lean_angle_deg !== undefined) leanAngle = Number(data.lean_angle_deg);
-        if (data.pitch_deg !== undefined) pitchAngle = Number(data.pitch_deg);
-        if (data.engine_rpm !== undefined) rpmVal = Math.round(data.engine_rpm);
-        if (data.coolant_temp_c !== undefined) tempVal = Math.round(data.coolant_temp_c);
-      }
-
-      // Update Text Displays
-      document.getElementById('rider-lean').innerText = leanAngle.toFixed(1);
-      document.getElementById('rider-pitch').innerText = pitchAngle.toFixed(1);
-      document.getElementById('rider-rpm').innerText = rpmVal;
-      document.getElementById('rider-temp').innerText = tempVal;
-
-      // Rotate SVG Bike Indicator & Update Direction Label
-      const bikeIcon = document.getElementById('lean-bike-icon');
-      const dirLabel = document.getElementById('rider-lean-dir');
-
-      if (bikeIcon) {
-        // Clamp rotation visual range to -45deg ... +45deg
-        const clampedAngle = Math.max(-45, Math.min(45, leanAngle));
-        bikeIcon.style.transform = `rotate(${clampedAngle}deg)`;
-      }
-
-      if (dirLabel) {
-        if (leanAngle > 3.0) {
-          dirLabel.innerText = `LEANING RIGHT (${Math.abs(leanAngle).toFixed(1)}°)`;
-          dirLabel.className = "text-[10px] font-extrabold uppercase text-cyan-400";
-        } else if (leanAngle < -3.0) {
-          dirLabel.innerText = `LEANING LEFT (${Math.abs(leanAngle).toFixed(1)}°)`;
-          dirLabel.className = "text-[10px] font-extrabold uppercase text-cyan-400";
-        } else {
-          dirLabel.innerText = "UPRIGHT (0.0°)";
-          dirLabel.className = "text-[10px] font-extrabold uppercase text-emerald-400";
-        }
-      }
-
-      if (typeof data.is_locked !== 'undefined') {
-        updateLockStateUI(data.is_locked);
-      }
-
-      if (data.lat && data.lng) {
-        const targetLatLng = [data.lat, data.lng];
-        if (!markers[data.unit_id]) {
-          markers[data.unit_id] = L.marker(targetLatLng).addTo(map);
-        } else {
-          markers[data.unit_id].setLatLng(targetLatLng);
-        }
-        map.flyTo(targetLatLng, 16, { animate: true, duration: 1 });
       }
     });
   </script>
