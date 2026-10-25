@@ -2,13 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>HG Telemetry & Command Center</title>
+  <title>VOGE Telemetry & Command Center</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Socket.IO Client -->
   <script src="/socket.io/socket.io.js"></script>
-  <!-- Leaflet Map CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
@@ -20,16 +17,16 @@
 
   <!-- TOP BAR -->
   <header class="flex justify-between items-center pb-2 border-b border-slate-800">
-    <h1 class="text-lg font-bold text-cyan-400">VOGE 525 // TELEMETRY COMMAND CENTER</h1>
+    <h1 class="text-lg font-bold text-cyan-400">VOGE 500AC // TELEMETRY COMMAND CENTER</h1>
     <div id="unit-status" class="px-3 py-1 bg-emerald-950 text-emerald-400 border border-emerald-500 rounded text-xs">
-      UNIT: VOGE-525-01 [ONLINE]
+      UNIT: VOGE-500AC-01 [ONLINE]
     </div>
   </header>
 
   <!-- 1. TOP SECTION: DASHBOARD ITEMS & REMOTE CONTROLS -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
     
-    <!-- 9-POINT STATUS GRID (Spans 2 columns) -->
+    <!-- 9-POINT STATUS GRID -->
     <div class="bg-slate-900 p-3 rounded-lg neon-border lg:col-span-2">
       <h2 class="text-xs text-slate-400 font-bold mb-2">SYSTEM TELEMETRY STATUS</h2>
       <div class="grid grid-cols-3 gap-2 text-center text-xs">
@@ -47,48 +44,49 @@
       </div>
     </div>
 
-    <!-- REMOTE COMMAND CONTROLS -->
-    <div class="bg-slate-900 p-3 rounded-lg neon-border flex flex-col justify-between">
-      <h2 class="text-xs text-slate-400 font-bold mb-2">REMOTE HARDWARE ACTUATION</h2>
+    <!-- REMOTE COMMAND CONTROLS & CAMERA FEED VIEWER -->
+    <div class="bg-slate-900 p-3 rounded-lg neon-border flex flex-col justify-between space-y-3">
+      <h2 class="text-xs text-slate-400 font-bold">REMOTE HARDWARE ACTUATION</h2>
       <div class="grid grid-cols-2 gap-2">
         <button onclick="triggerCommand('TOGGLE_CAM')" class="bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded text-xs font-bold">TOGGLE CAM</button>
         <button onclick="triggerCommand('TOGGLE_MIC')" class="bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded text-xs font-bold">TOGGLE MIC</button>
         <button onclick="triggerCommand('INITIATE_CALL')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded text-xs font-bold col-span-2">INITIATE EMERGENCY CALL</button>
+      </div>
+
+      <!-- CAMERA STREAM VIEWPORT -->
+      <div class="w-full h-36 bg-slate-950 rounded flex flex-col items-center justify-center overflow-hidden border border-slate-800 relative">
+        <div class="absolute top-1 left-2 text-[10px] text-cyan-400 font-bold z-10" id="cam-indicator">[CAMERA OFF]</div>
+        <img id="remote-cam-feed" class="w-full h-full object-contain hidden" alt="Remote Video Feed"/>
+        <div id="no-signal-placeholder" class="text-slate-600 text-xs font-bold">AWAITING CAMERA STREAM...</div>
       </div>
     </div>
 
   </div>
 
   <!-- 2. MIDDLE PANEL: DOUBLE-SIZE LIVE MAP -->
-  <div class="bg-slate-900 p-2 rounded-lg neon-border h-[500px] w-full">
+  <div class="bg-slate-900 p-2 rounded-lg neon-border h-[450px] w-full">
     <div id="map"></div>
   </div>
 
   <!-- 3. BOTTOM PANEL: HALF-HEIGHT MOTORCYCLE LEAN HUD WINDOW -->
   <div class="bg-slate-900 p-3 rounded-lg neon-border flex items-center justify-between h-44">
     
-    <!-- ANGLE VALUES -->
     <div class="flex flex-col justify-center space-y-2 text-cyan-400 font-bold text-lg w-1/4">
       <div>LEAN: <span id="val-lean" class="text-2xl text-white">0.0</span>°</div>
       <div>PITCH: <span id="val-pitch" class="text-2xl text-white">0.0</span>°</div>
     </div>
 
-    <!-- VECTOR BIKE HUD WINDOW -->
+    <!-- VECTOR ADVENTURE BIKE HUD -->
     <div class="relative w-3/4 h-full bg-slate-950 rounded flex items-center justify-center overflow-hidden border border-slate-800">
-      <!-- ARTIFICIAL HORIZON LINE -->
       <div id="hud-horizon" class="absolute w-[150%] h-[2px] bg-cyan-400 transition-transform duration-75"></div>
       
-      <!-- ADVENTURE MOTORCYCLE VECTOR -->
       <svg id="hud-bike" class="w-36 h-36 transition-transform duration-75 z-10" viewBox="0 0 400 300" fill="none">
-        <!-- Rims -->
         <circle cx="280" cy="200" r="38" stroke="#00f0ff" stroke-width="12"/>
         <circle cx="90" cy="200" r="38" stroke="#00f0ff" stroke-width="12"/>
         <circle cx="280" cy="200" r="14" fill="#00f0ff"/>
         <circle cx="90" cy="200" r="14" fill="#00f0ff"/>
         <line x1="230" y1="120" x2="280" y2="200" stroke="#00f0ff" stroke-width="12"/>
-        <!-- Solid Bodywork -->
         <path d="M 310 140 L 255 100 L 240 110 L 190 100 L 150 130 L 110 120 L 50 120 L 105 180 L 185 180 L 230 135 Z" fill="#00f0ff"/>
-        <!-- Engine Cutout -->
         <path d="M 175 130 L 210 130 L 200 160 L 165 160 Z" fill="#050b14"/>
       </svg>
     </div>
@@ -98,7 +96,7 @@
   <script>
     const socket = io();
 
-    // Leaflet Map Initialization
+    // Leaflet Map Setup
     const map = L.map('map').setView([14.5995, 120.9842], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -107,31 +105,43 @@
 
     const bikeMarker = L.marker([14.5995, 120.9842]).addTo(map);
 
-    // Dynamic Telemetry Handler
+    // Live Telemetry Payload Listener
     socket.on('TELEMETRY_PAYLOAD', (data) => {
       const lat = data.lat || 14.5995;
       const lng = data.lng || 120.9842;
       const lean = data.telemetry ? data.telemetry.lean_angle_deg : 0.0;
       const pitch = data.telemetry ? data.telemetry.pitch_deg : 0.0;
 
-      // Update Map Position & Auto-Center
+      // Auto-Center Map
       bikeMarker.setLatLng([lat, lng]);
       map.panTo([lat, lng]);
 
-      // Update Angles & Vector HUD Window
+      // Update HUD Vector
       document.getElementById('val-lean').innerText = lean.toFixed(1);
       document.getElementById('val-pitch').innerText = pitch.toFixed(1);
-
       document.getElementById('hud-bike').style.transform = `rotate(${lean}deg)`;
       document.getElementById('hud-horizon').style.transform = `rotate(${-lean}deg) translateY(${pitch * 1.5}px)`;
 
-      // Update Cards
       if (data.signal_dbm) document.getElementById('st-gsm').innerText = `${data.signal_dbm} dBm`;
+    });
+
+    // Camera Frame Listener
+    const camFeedImg = document.getElementById('remote-cam-feed');
+    const noSignalText = document.getElementById('no-signal-placeholder');
+    const camIndicator = document.getElementById('cam-indicator');
+
+    socket.on('CAMERA_FRAME_PAYLOAD', (data) => {
+      if (data.frame) {
+        camFeedImg.src = data.frame;
+        camFeedImg.classList.remove('hidden');
+        noSignalText.classList.add('hidden');
+        camIndicator.innerText = "[LIVE CAMERA FEED]";
+        camIndicator.className = "absolute top-1 left-2 text-[10px] text-emerald-400 font-bold z-10 animate-pulse";
+      }
     });
 
     function triggerCommand(action) {
       socket.emit('COMMAND_TRIGGER', { action: action, timestamp: Date.now() });
-      alert(`Dispatched command to bike gateway: ${action}`);
     }
   </script>
 </body>
