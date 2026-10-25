@@ -2,206 +2,141 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <title>VOGE Telemetry & Command Center</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VOGE Telemetry Live</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Socket.IO Client -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Leaflet Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    body { background-color: #090d16; color: #e2e8f0; }
-    #map { width: 100%; height: 100%; }
+    #map { height: 100%; width: 100%; border-radius: 0.5rem; }
+    .neon-border { border: 1px solid #00f0ff; box-shadow: 0 0 10px rgba(0,240,255,0.2); }
   </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden font-sans">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-mono p-4">
 
   <!-- TOP BAR -->
-  <header class="h-14 bg-slate-950 border-b border-slate-800 px-6 flex items-center justify-between shrink-0">
-    <div class="flex items-center gap-2">
-      <span class="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></span>
-      <span class="font-black tracking-wider text-sm text-white">VOGE LIVE TELEMETRY</span>
+  <header class="flex justify-between items-center pb-4 mb-4 border-b border-slate-800">
+    <h1 class="text-xl font-bold text-cyan-400">VOGE 500AC // TELEMETRY COMMAND CENTER</h1>
+    <div id="unit-status" class="px-3 py-1 bg-emerald-950 text-emerald-400 border border-emerald-500 rounded text-xs">
+      UNIT: VOGE-500AC-01 [ONLINE]
     </div>
-    <span id="unit-tag" class="font-mono text-xs text-cyan-400 bg-slate-900 border border-slate-800 px-2 py-1 rounded">VOGE-500AC-01</span>
   </header>
 
-  <!-- CONTENT -->
-  <div class="flex-1 flex overflow-hidden">
+  <!-- MAIN DASHBOARD GRID -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
     
-    <!-- LEFT SIDEBAR: 3D MODEL & METRICS -->
-    <aside class="w-96 border-r border-slate-800 bg-slate-950 p-4 flex flex-col gap-4 shrink-0 overflow-y-auto">
+    <!-- LEFT PANEL: STATUS GRID & REMOTE CONTROLS -->
+    <div class="space-y-4">
       
-      <!-- 3D MOTORCYCLE VIEWPORT -->
-      <div class="bg-slate-900 rounded-xl border border-slate-800 p-3">
-        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">3D Vehicle Attitude</span>
-        <div id="canvas-container" class="w-full h-52 bg-slate-950 rounded-lg overflow-hidden border border-slate-800"></div>
-        
-        <div class="grid grid-cols-2 gap-2 mt-3">
-          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-center">
-            <span class="text-[10px] text-slate-500 font-bold uppercase block">Lean (Roll)</span>
-            <span id="txt-roll" class="text-xl font-mono font-black text-cyan-400">0.0°</span>
-          </div>
-          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-center">
-            <span class="text-[10px] text-slate-500 font-bold uppercase block">Pitch</span>
-            <span id="txt-pitch" class="text-xl font-mono font-black text-cyan-400">0.0°</span>
-          </div>
+      <!-- 9-POINT STATUS MONITOR -->
+      <div class="bg-slate-900 p-4 rounded-lg neon-border">
+        <h2 class="text-xs text-slate-400 font-bold mb-3">SYSTEM TELEMETRY STATUS</h2>
+        <div class="grid grid-cols-3 gap-2 text-center text-xs">
+          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Server</span><span id="st-server" class="text-emerald-400 font-bold">Active</span></div>
+          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Conn</span><span id="st-conn" class="text-emerald-400 font-bold">On</span></div>
+          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Mode</span><span id="st-mode" class="text-cyan-400 font-bold">Normal</span></div>
+          
+          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">GPS</span><span id="st-gps" class="text-emerald-400 font-bold">Active</span></div>
+          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">GSM</span><span id="st-gsm" class="text-emerald-400 font-bold">-75 dBm</span></div>
+          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Backup</span><span id="st-backup" class="text-emerald-400 font-bold">Active</span></div>
+          
+          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Camera</span><span id="st-cam" class="text-slate-500 font-bold">Off</span></div>
+          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Mic</span><span id="st-mic" class="text-slate-500 font-bold">Off</span></div>
+          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Battery</span><span id="st-bat" class="text-cyan-400 font-bold">98%</span></div>
         </div>
       </div>
 
-      <!-- GPS & SPEED METRICS -->
-      <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 space-y-2">
-        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block">GPS Dynamics</span>
-        
+      <!-- REMOTE COMMAND CONTROLS -->
+      <div class="bg-slate-900 p-4 rounded-lg neon-border">
+        <h2 class="text-xs text-slate-400 font-bold mb-3">REMOTE HARDWARE ACTUATION</h2>
         <div class="grid grid-cols-2 gap-2">
-          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-            <span class="text-[10px] text-slate-500 font-bold uppercase block">Speed</span>
-            <div class="flex items-baseline gap-1">
-              <span id="txt-speed" class="text-2xl font-mono font-black text-emerald-400">0.0</span>
-              <span class="text-xs text-slate-500">km/h</span>
-            </div>
-          </div>
-          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-            <span class="text-[10px] text-slate-500 font-bold uppercase block">Heading</span>
-            <div class="flex items-baseline gap-1">
-              <span id="txt-heading" class="text-2xl font-mono font-black text-emerald-400">0°</span>
-              <span id="txt-cardinal" class="text-xs text-slate-400 font-bold">N</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 font-mono text-xs flex justify-between">
-          <span class="text-slate-500 font-sans text-[10px] font-bold uppercase">Coordinates</span>
-          <span id="txt-coords" class="text-slate-200 font-bold">14.59950, 120.98420</span>
+          <button onclick="triggerCommand('TOGGLE_CAM')" class="bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded text-xs font-bold">TOGGLE CAMERA</button>
+          <button onclick="triggerCommand('TOGGLE_MIC')" class="bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded text-xs font-bold">TOGGLE MIC</button>
+          <button onclick="triggerCommand('INITIATE_CALL')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded text-xs font-bold col-span-2">INITIATE EMERGENCY VOICE CALL</button>
         </div>
       </div>
 
-    </aside>
+    </div>
 
-    <!-- RIGHT SIDE: LIVE MAP -->
-    <main class="flex-1 h-full bg-slate-950">
+    <!-- CENTER PANEL: LIVE MAP AUTO-CENTERING -->
+    <div class="bg-slate-900 p-2 rounded-lg neon-border min-h-[350px]">
       <div id="map"></div>
-    </main>
+    </div>
+
+    <!-- RIGHT PANEL: VECTOR MOTORCYCLE TILT HUD WINDOW -->
+    <div class="bg-slate-900 p-4 rounded-lg neon-border flex flex-col items-center">
+      <h2 class="text-xs text-slate-400 font-bold mb-2">LIVE ATTITUDE & LEAN WINDOW</h2>
+      
+      <!-- SVG ADVENTURE SILHOUETTE HUD -->
+      <div class="relative w-full h-64 bg-slate-950 rounded flex items-center justify-center overflow-hidden">
+        <!-- HORIZON LINE -->
+        <div id="hud-horizon" class="absolute w-[150%] h-[2px] bg-cyan-400 transition-transform duration-75"></div>
+        
+        <!-- BIKE VECTOR (ROTATES WITH LEAN ANGLE) -->
+        <svg id="hud-bike" class="w-48 h-48 transition-transform duration-75 z-10" viewBox="0 0 400 300" fill="none">
+          <!-- Rims -->
+          <circle cx="280" cy="200" r="38" stroke="#00f0ff" stroke-width="12"/>
+          <circle cx="90" cy="200" r="38" stroke="#00f0ff" stroke-width="12"/>
+          <circle cx="280" cy="200" r="14" fill="#00f0ff"/>
+          <circle cx="90" cy="200" r="14" fill="#00f0ff"/>
+          <line x1="230" y1="120" x2="280" y2="200" stroke="#00f0ff" stroke-width="12"/>
+          <!-- Solid Body -->
+          <path d="M 310 140 L 255 100 L 240 110 L 190 100 L 150 130 L 110 120 L 50 120 L 105 180 L 185 180 L 230 135 Z" fill="#00f0ff"/>
+          <!-- Cutout -->
+          <path d="M 175 130 L 210 130 L 200 160 L 165 160 Z" fill="#050b14"/>
+        </svg>
+      </div>
+
+      <div class="flex justify-between w-full mt-4 text-cyan-400 text-lg font-bold">
+        <span>LEAN: <span id="val-lean">0.0</span>°</span>
+        <span>PITCH: <span id="val-pitch">0.0</span>°</span>
+      </div>
+    </div>
 
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
   <script>
-    // --- LEAFLET MAP ---
-    const map = L.map('map', { zoomControl: false }).setView([14.5995, 120.9842], 16);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
-    let marker = null;
+    const socket = io();
 
-    // --- THREE.JS 3D MOTORCYCLE ---
-    let scene, camera, renderer, bikeGroup;
-    let targetRoll = 0, targetPitch = 0;
-    let currentRoll = 0, currentPitch = 0;
+    // Leaflet Map Initialization
+    const map = L.map('map').setView([14.5995, 120.9842], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
 
-    function init3D() {
-      const container = document.getElementById('canvas-container');
-      const w = container.clientWidth, h = container.clientHeight;
+    const bikeMarker = L.marker([14.5995, 120.9842]).addTo(map);
 
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
-      camera.position.set(2.8, 1.8, 3.2);
-      camera.lookAt(0, 0, 0);
+    // Dynamic Socket Listener
+    socket.on('TELEMETRY_PAYLOAD', (data) => {
+      const lat = data.lat || 14.5995;
+      const lng = data.lng || 120.9842;
+      const lean = data.telemetry ? data.telemetry.lean_angle_deg : 0.0;
+      const pitch = data.telemetry ? data.telemetry.pitch_deg : 0.0;
 
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(w, h);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      container.appendChild(renderer.domElement);
+      // Update Map Position & Auto-Center
+      bikeMarker.setLatLng([lat, lng]);
+      map.panTo([lat, lng]);
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-      const dirLight = new THREE.DirectionalLight(0x00e676, 1.2);
-      dirLight.position.set(5, 10, 5);
-      scene.add(dirLight);
+      // Update Angles & Vector Viewport
+      document.getElementById('val-lean').innerText = lean.toFixed(1);
+      document.getElementById('val-pitch').innerText = pitch.toFixed(1);
 
-      // Build Motorcycle Mesh
-      bikeGroup = new THREE.Group();
+      document.getElementById('hud-bike').style.transform = `rotate(${lean}deg)`;
+      document.getElementById('hud-horizon').style.transform = `rotate(${-lean}deg) translateY(${pitch * 2}px)`;
 
-      // Frame
-      const body = new THREE.Mesh(
-        new THREE.BoxGeometry(1.5, 0.45, 0.35),
-        new THREE.MeshStandardMaterial({ color: 0x00bcd4, metalness: 0.6, roughness: 0.3 })
-      );
-      bikeGroup.add(body);
-
-      // Wheels
-      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
-      const wheelGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.12, 20);
-
-      const fWheel = new THREE.Mesh(wheelGeo, wheelMat);
-      fWheel.rotation.z = Math.PI / 2;
-      fWheel.position.set(0.65, -0.22, 0);
-      bikeGroup.add(fWheel);
-
-      const rWheel = new THREE.Mesh(wheelGeo, wheelMat);
-      rWheel.rotation.z = Math.PI / 2;
-      rWheel.position.set(-0.65, -0.22, 0);
-      bikeGroup.add(rWheel);
-
-      scene.add(bikeGroup);
-
-      // 60 FPS LERP Render Loop for smooth zero-lag animation
-      function animate() {
-        requestAnimationFrame(animate);
-        currentRoll += (targetRoll - currentRoll) * 0.25;
-        currentPitch += (targetPitch - currentPitch) * 0.25;
-
-        if (bikeGroup) {
-          bikeGroup.rotation.x = currentRoll;
-          bikeGroup.rotation.z = currentPitch;
-        }
-        renderer.render(scene, camera);
-      }
-      animate();
-    }
-    window.addEventListener('load', init3D);
-
-    // --- SOCKET.IO REALTIME TELEMETRY ---
-    const socket = io(window.location.origin);
-
-    socket.on('TELEMETRY_UPDATE', (data) => {
-      if (!data) return;
-
-      // Update 3D Model Targets
-      if (data.telemetry) {
-        const rollDeg = Number(data.telemetry.lean_angle_deg || 0);
-        const pitchDeg = Number(data.telemetry.pitch_deg || 0);
-
-        targetRoll = (rollDeg * Math.PI) / 180.0;
-        targetPitch = (-pitchDeg * Math.PI) / 180.0;
-
-        document.getElementById('txt-roll').innerText = `${rollDeg.toFixed(1)}°`;
-        document.getElementById('txt-pitch').innerText = `${pitchDeg.toFixed(1)}°`;
-      }
-
-      // Update GPS & Speed UI
-      const lat = Number(data.lat || 0);
-      const lng = Number(data.lng || 0);
-      const speed = Number(data.speed || 0);
-      const heading = Number(data.heading || 0);
-
-      document.getElementById('txt-speed').innerText = speed.toFixed(1);
-      document.getElementById('txt-heading').innerText = `${Math.round(heading)}°`;
-      document.getElementById('txt-cardinal').innerText = getCardinal(heading);
-      document.getElementById('txt-coords').innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-
-      // Update Map Marker & Smooth Pan
-      if (lat && lng) {
-        const pos = [lat, lng];
-        if (!marker) {
-          marker = L.marker(pos).addTo(map);
-          map.setView(pos, 16);
-        } else {
-          marker.setLatLng(pos);
-          map.panTo(pos, { animate: true, duration: 0.3 });
-        }
-      }
+      // Update Dynamic Cards
+      if (data.signal_dbm) document.getElementById('st-gsm').innerText = `${data.signal_dbm} dBm`;
+      if (data.battery) document.getElementById('st-bat').innerText = `${data.battery}%`;
     });
 
-    function getCardinal(deg) {
-      const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-      return dirs[Math.round(((deg %= 360) < 0 ? deg + 360 : deg) / 45) % 8];
+    function triggerCommand(action) {
+      socket.emit('COMMAND_TRIGGER', { action: action, timestamp: Date.now() });
+      alert(`Command dispatched: ${action}`);
     }
   </script>
 </body>
