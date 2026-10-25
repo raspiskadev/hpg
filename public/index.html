@@ -14,13 +14,17 @@
     ::-webkit-scrollbar-track { background: #0f172a; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
 
-    /* Strobe Overlay */
+    /* Strobe Overlay Layer */
     @keyframes police-strobe {
       0%, 49% { background-color: rgba(239, 68, 68, 0.25); }
       50%, 100% { background-color: rgba(59, 130, 246, 0.25); }
     }
     .active-strobe { animation: police-strobe 0.3s infinite; pointer-events: none; }
     .ptt-active { background-color: #ef4444 !important; color: #ffffff !important; animation: pulse 1s infinite; }
+
+    #threejs-canvas-container canvas {
+      outline: none;
+    }
   </style>
 </head>
 <body class="bg-slate-900 font-sans text-slate-100 antialiased h-screen flex flex-col overflow-hidden">
@@ -59,7 +63,7 @@
     <div class="flex items-center gap-4">
       <div class="border-l border-slate-800 pl-4">
         <span class="text-base font-black tracking-wider text-white block leading-none">VOGE ONE</span>
-        <span class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">Smart Fleet & Rider Command Console</span>
+        <span class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">Real-Time Fleet & Rider Command Console</span>
       </div>
     </div>
 
@@ -80,7 +84,7 @@
     <!-- LEFT SIDEBAR -->
     <aside class="w-96 border-r border-slate-800 bg-slate-950 flex flex-col h-full overflow-y-auto shrink-0 shadow-xl z-10 p-4 space-y-4">
       
-      <!-- VOGE RIDER & GPS TELEMETRY CARD -->
+      <!-- VOGE RIDER & LIVE GPS CARD -->
       <div class="p-3.5 bg-slate-900 rounded-xl border border-slate-800 shadow-inner">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-3">
@@ -95,7 +99,7 @@
           <span id="rider-status" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE RIDE</span>
         </div>
 
-        <!-- Speed & Heading (Degrees / Cardinal direction) -->
+        <!-- Live Speed & Compass Bearing -->
         <div class="grid grid-cols-2 gap-2 mt-3">
           <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
             <span class="text-[10px] font-bold uppercase text-slate-500 block">Cruising Speed</span>
@@ -113,13 +117,13 @@
           </div>
         </div>
 
-        <!-- Precise GPS Coordinates -->
+        <!-- Exact Live GPS Coordinates -->
         <div class="mt-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs font-mono flex justify-between items-center">
           <div>
-            <span class="text-[9px] text-slate-500 font-sans block font-bold uppercase">Exact GPS Position</span>
+            <span class="text-[9px] text-slate-500 font-sans block font-bold uppercase">Live GPS Coordinates</span>
             <span id="rider-coords" class="font-bold text-slate-300">14.59950, 120.98420</span>
           </div>
-          <span class="text-[10px] text-cyan-400 font-sans font-bold">3s Refresh</span>
+          <span class="text-[10px] text-emerald-400 font-sans font-bold animate-pulse">LIVE</span>
         </div>
       </div>
 
@@ -127,7 +131,7 @@
       <div class="p-3.5 bg-slate-900 rounded-xl border border-slate-800 shadow-inner space-y-3">
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2">
-            <i class="fa-solid fa-cube text-cyan-400"></i> 3D Motorcycle Tilt Dynamics
+            <i class="fa-solid fa-cube text-cyan-400"></i> 3D Real-Time Orientation
           </span>
           <button onclick="calibrateZeroTilt()" class="px-2 py-1 bg-cyan-950 hover:bg-cyan-900 text-cyan-400 border border-cyan-800 rounded text-[10px] font-bold transition">
             <i class="fa-solid fa-crosshairs"></i> Calibrate 0°
@@ -136,8 +140,8 @@
 
         <!-- WebGL 3D Canvas -->
         <div class="bg-slate-950 rounded-lg border border-slate-800 relative overflow-hidden flex items-center justify-center">
-          <div id="threejs-canvas-container" class="w-full h-44"></div>
-          <span class="text-[9px] font-bold text-slate-500 uppercase absolute top-2 left-2">Real-Time Pitch & Roll</span>
+          <div id="threejs-canvas-container" class="w-full h-48"></div>
+          <span class="text-[9px] font-bold text-slate-500 uppercase absolute top-2 left-2">Zero-Latency Pitch & Roll</span>
         </div>
 
         <!-- Angle Readouts -->
@@ -177,7 +181,7 @@
         </button>
       </div>
 
-      <!-- VEHICLE OVERRIDES & IGNITION SECURITY -->
+      <!-- VEHICLE OVERRIDES & SECURITY -->
       <div>
         <span class="block text-[11px] font-bold uppercase text-slate-500 mb-2">Vehicle Overrides & Sound</span>
         <div class="p-3 mb-2 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between">
@@ -232,9 +236,8 @@
     let sirenActive = false;
     let lightsActive = false;
     let audioCtx = null;
-    let sirenOscillator = null;
 
-    // System Clock
+    // Clock
     setInterval(() => {
       document.getElementById('live-clock').innerText = new Date().toTimeString().split(' ')[0] + ' PST';
     }, 1000);
@@ -256,7 +259,7 @@
     // Zero-Calibration Trigger
     function calibrateZeroTilt() {
       socket.emit('DISPATCH_COMMAND', { target_unit: TARGET_UNIT, action: 'CALIBRATE_TILT' });
-      appendChatMessage('VOGE Control', 'Sent zero-point calibration request ($CALIBRATE#) to ESP32...');
+      appendChatMessage('VOGE Control', 'Sent $CALIBRATE# signal to ESP32...');
     }
 
     // =========================================================================
@@ -279,7 +282,6 @@
       renderer.setPixelRatio(window.devicePixelRatio);
       container.appendChild(renderer.domElement);
 
-      // Ambient & Directional Lighting
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
       scene.add(ambientLight);
 
@@ -287,10 +289,10 @@
       dirLight.position.set(5, 10, 7);
       scene.add(dirLight);
 
-      // Build Motorcycle Geometry Group
+      // Motorcycle Geometry Group
       motorcycleGroup = new THREE.Group();
 
-      // Main Bike Frame (Cyan Metallic Box)
+      // Main Bike Chassis
       const bodyGeo = new THREE.BoxGeometry(1.6, 0.5, 0.4);
       const bodyMat = new THREE.MeshStandardMaterial({ color: 0x00bcd4, metalness: 0.6, roughness: 0.3 });
       const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
@@ -320,7 +322,6 @@
 
       scene.add(motorcycleGroup);
 
-      // Render Loop
       function animate() {
         requestAnimationFrame(animate);
         renderer.render(scene, camera);
@@ -328,18 +329,15 @@
       animate();
     }
 
-    // Initialize 3D Scene on load
     window.addEventListener('load', init3DMotorcycle);
 
     // =========================================================================
-    //  LIVE TELEMETRY RECEIVER & 3-SECOND GPS UPDATER
+    //  INSTANT TELEMETRY & FAST MAP UPDATER (ZERO LATENCY)
     // =========================================================================
-    let lastGpsUpdateTime = 0;
-
     socket.on('TELEMETRY_UPDATE', (data) => {
-      const now = Date.now();
+      if (!data) return;
 
-      // Extract Roll & Pitch
+      // 1. ANGLE CALCULATION & INSTANT 3D ROTATION
       let leanAngle = 0.0, pitchAngle = 0.0;
       if (data.telemetry) {
         leanAngle = Number(data.telemetry.lean_angle_deg || 0);
@@ -349,54 +347,46 @@
         if (data.pitch_deg !== undefined) pitchAngle = Number(data.pitch_deg);
       }
 
-      // Update Text Displays
       document.getElementById('rider-lean').innerText = leanAngle.toFixed(1);
       document.getElementById('rider-pitch').innerText = pitchAngle.toFixed(1);
 
-      // Update 3D Model Rotation in Real Time
       if (motorcycleGroup) {
-        // Roll around X axis, Pitch around Z axis (converted to Radians)
-        motorcycleGroup.rotation.x = (leanAngle * Math.PI) / 180.0;
-        motorcycleGroup.rotation.z = (-pitchAngle * Math.PI) / 180.0;
+        motorcycleGroup.rotation.x = (leanAngle * Math.PI) / 180.0;   // Roll
+        motorcycleGroup.rotation.z = (-pitchAngle * Math.PI) / 180.0;  // Pitch
       }
 
-      // Throttle GPS and Speed UI updates to every 3 Seconds (3000 ms)
-      if (now - lastGpsUpdateTime >= 3000) {
-        lastGpsUpdateTime = now;
+      // 2. LIVE GPS & SPEED METRICS
+      const lat = Number(data.lat || (data.gps ? data.gps.latitude : 0) || 0);
+      const lng = Number(data.lng || (data.gps ? data.gps.longitude : 0) || 0);
+      const speed = Number(data.speed || (data.gps ? data.gps.speed_kmh : 0) || 0);
+      const heading = Number(data.heading || data.bearing || (data.gps ? data.gps.heading : 0) || 0);
 
-        const lat = Number(data.lat || (data.gps ? data.gps.latitude : 0) || 0);
-        const lng = Number(data.lng || (data.gps ? data.gps.longitude : 0) || 0);
-        const speed = Number(data.speed || (data.gps ? data.gps.speed_kmh : 0) || 0);
-        const heading = Number(data.heading || data.bearing || (data.gps ? data.gps.heading : 0) || 0);
+      document.getElementById('rider-speed').innerText = speed.toFixed(1);
+      document.getElementById('rider-heading').innerText = `${Math.round(heading)}°`;
+      document.getElementById('rider-cardinal').innerText = getCardinalDirection(heading);
+      document.getElementById('rider-coords').innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
-        document.getElementById('rider-speed').innerText = speed.toFixed(1);
-        document.getElementById('rider-heading').innerText = `${Math.round(heading)}°`;
-        document.getElementById('rider-cardinal').innerText = getCardinalDirection(heading);
-        document.getElementById('rider-coords').innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      // 3. FAST 200MS MAP POSITION UPDATES
+      if (lat && lng) {
+        const targetLatLng = [lat, lng];
 
-        if (lat && lng) {
-          const targetLatLng = [lat, lng];
-
-          if (!markers[data.unit_id]) {
-            markers[data.unit_id] = L.marker(targetLatLng).addTo(map);
-          } else {
-            markers[data.unit_id].setLatLng(targetLatLng);
-          }
-
-          // Smooth animated transition to new location every 3 seconds
-          map.flyTo(targetLatLng, 16, { animate: true, duration: 1.5 });
+        if (!markers[data.unit_id]) {
+          markers[data.unit_id] = L.marker(targetLatLng).addTo(map);
+          map.setView(targetLatLng, 16);
+        } else {
+          markers[data.unit_id].setLatLng(targetLatLng);
+          map.panTo(targetLatLng, { animate: true, duration: 0.2 });
         }
       }
     });
 
-    // Helper: Calculate Cardinal Direction from compass degrees
     function getCardinalDirection(angle) {
       const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
       const index = Math.round(((angle %= 360) < 0 ? angle + 360 : angle) / 45) % 8;
       return directions[index];
     }
 
-    // --- PTT, CHAT & WEBRTC HANDLERS ---
+    // --- PTT, CHAT & COMMS ---
     let mediaRecorder = null, audioChunks = [];
     async function startPTT() {
       const btn = document.getElementById('btn-ptt');
