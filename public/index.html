@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>VOGE Telemetry & Command Center</title>
+  <title>HG Telemetry & Command Center</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -13,88 +13,84 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     #map { height: 100%; width: 100%; border-radius: 0.5rem; }
-    .neon-border { border: 1px solid #00f0ff; box-shadow: 0 0 10px rgba(0,240,255,0.2); }
+    .neon-border { border: 1px solid #00f0ff; box-shadow: 0 0 10px rgba(0,240,255,0.15); }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-mono p-4">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-mono p-4 space-y-4">
 
   <!-- TOP BAR -->
-  <header class="flex justify-between items-center pb-4 mb-4 border-b border-slate-800">
-    <h1 class="text-xl font-bold text-cyan-400">VOGE 500AC // TELEMETRY COMMAND CENTER</h1>
+  <header class="flex justify-between items-center pb-2 border-b border-slate-800">
+    <h1 class="text-lg font-bold text-cyan-400">VOGE 525 // TELEMETRY COMMAND CENTER</h1>
     <div id="unit-status" class="px-3 py-1 bg-emerald-950 text-emerald-400 border border-emerald-500 rounded text-xs">
-      UNIT: VOGE-500AC-01 [ONLINE]
+      UNIT: VOGE-525-01 [ONLINE]
     </div>
   </header>
 
-  <!-- MAIN DASHBOARD GRID -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
+  <!-- 1. TOP SECTION: DASHBOARD ITEMS & REMOTE CONTROLS -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
     
-    <!-- LEFT PANEL: STATUS GRID & REMOTE CONTROLS -->
-    <div class="space-y-4">
-      
-      <!-- 9-POINT STATUS MONITOR -->
-      <div class="bg-slate-900 p-4 rounded-lg neon-border">
-        <h2 class="text-xs text-slate-400 font-bold mb-3">SYSTEM TELEMETRY STATUS</h2>
-        <div class="grid grid-cols-3 gap-2 text-center text-xs">
-          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Server</span><span id="st-server" class="text-emerald-400 font-bold">Active</span></div>
-          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Conn</span><span id="st-conn" class="text-emerald-400 font-bold">On</span></div>
-          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Mode</span><span id="st-mode" class="text-cyan-400 font-bold">Normal</span></div>
-          
-          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">GPS</span><span id="st-gps" class="text-emerald-400 font-bold">Active</span></div>
-          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">GSM</span><span id="st-gsm" class="text-emerald-400 font-bold">-75 dBm</span></div>
-          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Backup</span><span id="st-backup" class="text-emerald-400 font-bold">Active</span></div>
-          
-          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Camera</span><span id="st-cam" class="text-slate-500 font-bold">Off</span></div>
-          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Mic</span><span id="st-mic" class="text-slate-500 font-bold">Off</span></div>
-          <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Battery</span><span id="st-bat" class="text-cyan-400 font-bold">98%</span></div>
-        </div>
-      </div>
-
-      <!-- REMOTE COMMAND CONTROLS -->
-      <div class="bg-slate-900 p-4 rounded-lg neon-border">
-        <h2 class="text-xs text-slate-400 font-bold mb-3">REMOTE HARDWARE ACTUATION</h2>
-        <div class="grid grid-cols-2 gap-2">
-          <button onclick="triggerCommand('TOGGLE_CAM')" class="bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded text-xs font-bold">TOGGLE CAMERA</button>
-          <button onclick="triggerCommand('TOGGLE_MIC')" class="bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded text-xs font-bold">TOGGLE MIC</button>
-          <button onclick="triggerCommand('INITIATE_CALL')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded text-xs font-bold col-span-2">INITIATE EMERGENCY VOICE CALL</button>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- CENTER PANEL: LIVE MAP AUTO-CENTERING -->
-    <div class="bg-slate-900 p-2 rounded-lg neon-border min-h-[350px]">
-      <div id="map"></div>
-    </div>
-
-    <!-- RIGHT PANEL: VECTOR MOTORCYCLE TILT HUD WINDOW -->
-    <div class="bg-slate-900 p-4 rounded-lg neon-border flex flex-col items-center">
-      <h2 class="text-xs text-slate-400 font-bold mb-2">LIVE ATTITUDE & LEAN WINDOW</h2>
-      
-      <!-- SVG ADVENTURE SILHOUETTE HUD -->
-      <div class="relative w-full h-64 bg-slate-950 rounded flex items-center justify-center overflow-hidden">
-        <!-- HORIZON LINE -->
-        <div id="hud-horizon" class="absolute w-[150%] h-[2px] bg-cyan-400 transition-transform duration-75"></div>
+    <!-- 9-POINT STATUS GRID (Spans 2 columns) -->
+    <div class="bg-slate-900 p-3 rounded-lg neon-border lg:col-span-2">
+      <h2 class="text-xs text-slate-400 font-bold mb-2">SYSTEM TELEMETRY STATUS</h2>
+      <div class="grid grid-cols-3 gap-2 text-center text-xs">
+        <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Server</span><span id="st-server" class="text-emerald-400 font-bold">Active</span></div>
+        <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Connection</span><span id="st-conn" class="text-emerald-400 font-bold">On</span></div>
+        <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Mode</span><span id="st-mode" class="text-cyan-400 font-bold">Normal</span></div>
         
-        <!-- BIKE VECTOR (ROTATES WITH LEAN ANGLE) -->
-        <svg id="hud-bike" class="w-48 h-48 transition-transform duration-75 z-10" viewBox="0 0 400 300" fill="none">
-          <!-- Rims -->
-          <circle cx="280" cy="200" r="38" stroke="#00f0ff" stroke-width="12"/>
-          <circle cx="90" cy="200" r="38" stroke="#00f0ff" stroke-width="12"/>
-          <circle cx="280" cy="200" r="14" fill="#00f0ff"/>
-          <circle cx="90" cy="200" r="14" fill="#00f0ff"/>
-          <line x1="230" y1="120" x2="280" y2="200" stroke="#00f0ff" stroke-width="12"/>
-          <!-- Solid Body -->
-          <path d="M 310 140 L 255 100 L 240 110 L 190 100 L 150 130 L 110 120 L 50 120 L 105 180 L 185 180 L 230 135 Z" fill="#00f0ff"/>
-          <!-- Cutout -->
-          <path d="M 175 130 L 210 130 L 200 160 L 165 160 Z" fill="#050b14"/>
-        </svg>
+        <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">GPS</span><span id="st-gps" class="text-emerald-400 font-bold">Active</span></div>
+        <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">GSM</span><span id="st-gsm" class="text-emerald-400 font-bold">-75 dBm</span></div>
+        <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Backup Comm</span><span id="st-backup" class="text-emerald-400 font-bold">Active</span></div>
+        
+        <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Camera</span><span id="st-cam" class="text-slate-500 font-bold">Off</span></div>
+        <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">Microphone</span><span id="st-mic" class="text-slate-500 font-bold">Off</span></div>
+        <div class="bg-slate-800 p-2 rounded"><span class="block text-slate-400">ESP32 BT</span><span id="st-bt" class="text-amber-400 font-bold">Connected</span></div>
       </div>
+    </div>
 
-      <div class="flex justify-between w-full mt-4 text-cyan-400 text-lg font-bold">
-        <span>LEAN: <span id="val-lean">0.0</span>°</span>
-        <span>PITCH: <span id="val-pitch">0.0</span>°</span>
+    <!-- REMOTE COMMAND CONTROLS -->
+    <div class="bg-slate-900 p-3 rounded-lg neon-border flex flex-col justify-between">
+      <h2 class="text-xs text-slate-400 font-bold mb-2">REMOTE HARDWARE ACTUATION</h2>
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="triggerCommand('TOGGLE_CAM')" class="bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded text-xs font-bold">TOGGLE CAM</button>
+        <button onclick="triggerCommand('TOGGLE_MIC')" class="bg-cyan-600 hover:bg-cyan-500 text-white py-2 rounded text-xs font-bold">TOGGLE MIC</button>
+        <button onclick="triggerCommand('INITIATE_CALL')" class="bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded text-xs font-bold col-span-2">INITIATE EMERGENCY CALL</button>
       </div>
+    </div>
+
+  </div>
+
+  <!-- 2. MIDDLE PANEL: DOUBLE-SIZE LIVE MAP -->
+  <div class="bg-slate-900 p-2 rounded-lg neon-border h-[500px] w-full">
+    <div id="map"></div>
+  </div>
+
+  <!-- 3. BOTTOM PANEL: HALF-HEIGHT MOTORCYCLE LEAN HUD WINDOW -->
+  <div class="bg-slate-900 p-3 rounded-lg neon-border flex items-center justify-between h-44">
+    
+    <!-- ANGLE VALUES -->
+    <div class="flex flex-col justify-center space-y-2 text-cyan-400 font-bold text-lg w-1/4">
+      <div>LEAN: <span id="val-lean" class="text-2xl text-white">0.0</span>°</div>
+      <div>PITCH: <span id="val-pitch" class="text-2xl text-white">0.0</span>°</div>
+    </div>
+
+    <!-- VECTOR BIKE HUD WINDOW -->
+    <div class="relative w-3/4 h-full bg-slate-950 rounded flex items-center justify-center overflow-hidden border border-slate-800">
+      <!-- ARTIFICIAL HORIZON LINE -->
+      <div id="hud-horizon" class="absolute w-[150%] h-[2px] bg-cyan-400 transition-transform duration-75"></div>
+      
+      <!-- ADVENTURE MOTORCYCLE VECTOR -->
+      <svg id="hud-bike" class="w-36 h-36 transition-transform duration-75 z-10" viewBox="0 0 400 300" fill="none">
+        <!-- Rims -->
+        <circle cx="280" cy="200" r="38" stroke="#00f0ff" stroke-width="12"/>
+        <circle cx="90" cy="200" r="38" stroke="#00f0ff" stroke-width="12"/>
+        <circle cx="280" cy="200" r="14" fill="#00f0ff"/>
+        <circle cx="90" cy="200" r="14" fill="#00f0ff"/>
+        <line x1="230" y1="120" x2="280" y2="200" stroke="#00f0ff" stroke-width="12"/>
+        <!-- Solid Bodywork -->
+        <path d="M 310 140 L 255 100 L 240 110 L 190 100 L 150 130 L 110 120 L 50 120 L 105 180 L 185 180 L 230 135 Z" fill="#00f0ff"/>
+        <!-- Engine Cutout -->
+        <path d="M 175 130 L 210 130 L 200 160 L 165 160 Z" fill="#050b14"/>
+      </svg>
     </div>
 
   </div>
@@ -111,7 +107,7 @@
 
     const bikeMarker = L.marker([14.5995, 120.9842]).addTo(map);
 
-    // Dynamic Socket Listener
+    // Dynamic Telemetry Handler
     socket.on('TELEMETRY_PAYLOAD', (data) => {
       const lat = data.lat || 14.5995;
       const lng = data.lng || 120.9842;
@@ -122,21 +118,20 @@
       bikeMarker.setLatLng([lat, lng]);
       map.panTo([lat, lng]);
 
-      // Update Angles & Vector Viewport
+      // Update Angles & Vector HUD Window
       document.getElementById('val-lean').innerText = lean.toFixed(1);
       document.getElementById('val-pitch').innerText = pitch.toFixed(1);
 
       document.getElementById('hud-bike').style.transform = `rotate(${lean}deg)`;
-      document.getElementById('hud-horizon').style.transform = `rotate(${-lean}deg) translateY(${pitch * 2}px)`;
+      document.getElementById('hud-horizon').style.transform = `rotate(${-lean}deg) translateY(${pitch * 1.5}px)`;
 
-      // Update Dynamic Cards
+      // Update Cards
       if (data.signal_dbm) document.getElementById('st-gsm').innerText = `${data.signal_dbm} dBm`;
-      if (data.battery) document.getElementById('st-bat').innerText = `${data.battery}%`;
     });
 
     function triggerCommand(action) {
       socket.emit('COMMAND_TRIGGER', { action: action, timestamp: Date.now() });
-      alert(`Command dispatched: ${action}`);
+      alert(`Dispatched command to bike gateway: ${action}`);
     }
   </script>
 </body>
